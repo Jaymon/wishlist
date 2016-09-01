@@ -1,0 +1,5 @@
+.DS_Store
+*.tmproj
+*.pyc
+.vagrant
+
