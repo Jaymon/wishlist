@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import os
 import tempfile
 import pickle
@@ -29,7 +30,11 @@ class WebElement(BaseWebElement):
     @property
     def soup(self):
         """Return a beautiful soup object with the contents of this element"""
-        return BeautifulSoup(self.body)
+        soup = getattr(self, "_soup", None)
+        if soup is None:
+            soup = BeautifulSoup(self.body, "html.parser")
+            self._soup = soup
+        return soup
 
 
 class WebDriver(BaseWebDriver):
@@ -95,7 +100,7 @@ class WishlistElement(object):
     @property
     def uuid(self):
         m = re.search("/dp/([^/]+)", self.url)
-        return m.group(1)
+        return m.group(1) if m else ""
 
     @property
     def url(self):
@@ -111,13 +116,37 @@ class WishlistElement(object):
     def image(self):
         src = ""
         for img in self.element.soup.find_all("img"):
-            if "src" in a.attrs:
+            if "src" in img.attrs:
                 if img.parent and img.parent.name == "a":
                     a = img.parent
                     if a.attrs["href"].startswith("/dp/"):
                         src = img.attrs["src"]
                         break
         return src
+
+    @property
+    def price(self):
+        price = 0.0
+        el = self.element.soup.find("span", id=re.compile("^itemPrice_"))
+        if el:
+            price = float(el.contents[0].strip()[1:].split()[0].replace(",", ""))
+        return price
+
+    @property
+    def title(self):
+        title = ""
+        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        if el:
+            title = el.contents[0].strip()
+        return title
+
+    @property
+    def comment(self):
+        ret = ""
+        el = self.element.soup.find("span", id=re.compile("^itemComment_"))
+        if el:
+            ret = el.contents[0].strip()
+        return ret
 
     def __init__(self, element):
         self.element = element
@@ -126,20 +155,16 @@ class WishlistElement(object):
         lines = self.element.text.splitlines()
 
         json_item = {}
-        json_item["title"] = lines[0]
+        json_item["title"] = self.title
         json_item["image"] = self.image
         json_item["uuid"] = self.uuid
         json_item["url"] = self.url
+        json_item["price"] = self.price
+        json_item["comment"] = self.comment
 
         for j, line in enumerate(lines[1:], 1):
-            if line.startswith("$"):
-                json_item["price"] = float(line[1:].split()[0])
-
-            elif line.startswith("Added "):
+            if line.startswith("Added "):
                 json_item["added"] = line.replace("Added ", "")
-
-            elif line.startswith("Edit "):
-                json_item["comment"] = lines[j + 1]
 
             elif line.startswith("by "):
                 json_item["author"] = line.replace("by ", "")
@@ -202,6 +227,7 @@ class Wishlist(object):
         self.location(base_url)
         driver = self.browser
 
+        current_item = None # for debugging
         try:
             # http://stackoverflow.com/questions/1604471/how-can-i-find-an-element-by-css-class-with-xpath
             xpath = "//ul[@class=\"a-pagination\"]"
@@ -212,32 +238,22 @@ class Wishlist(object):
                 if page > 1:
                     self.location(base_url + "?page={}".format(page))
 
-                #html_images = driver.find_elements_by_xpath("//div[starts-with(@id, 'item_')]//img[position()=2]")
-                # TODO -- I can't figure out how to get every other image
-                #html_images = driver.find_elements_by_xpath("//div[starts-with(@id, 'item_')]//img")
-                #html_links = driver.find_elements_by_xpath("//a[starts-with(@id, 'itemName_')]")
                 html_items = driver.find_elements_by_xpath("//div[starts-with(@id, 'item_')]")
-                #pout.v(len(html_images), len(html_links), len(html_items))
-
                 for i, html_item in enumerate(html_items):
-                    item = WishlistItem(html_item)
+                    current_item = html_item
+                    item = WishlistElement(html_item)
                     yield item.jsonable()
 
-#                 xpath = "//ul[@class=\"a-pagination\"]//li[@class=\"a-list\"]/a"
-#                 if xpath:
-#                     html_pagination = driver.find_element_by_xpath(xpath)
-#                     html_pagination.click()
-#                 else:
-#                     in_list = False
-
         except NoSuchElementException as e:
-            pout.v(self.body)
+            if current_item:
+                pout.v(current_item.body)
             raise ParseError(self.body, e)
 
         except Exception as e:
+            if current_item:
+                pout.v(current_item.body)
             pout.v(e)
             raise
-
 
     def homepage(self, **kwargs):
         """loads the amazon homepage, this forces cookies to load"""
