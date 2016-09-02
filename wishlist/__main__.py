@@ -50,9 +50,18 @@ def main_auth():
 def main_dump(name):
     with Wishlist.lifecycle() as w:
         w.homepage() # we load homepage to force cookies
+        current_url = ""
 
         # https://www.amazon.com/gp/registry/wishlist/1XDNMA31SYSRC
         for item in w.get(name):
+            if current_url:
+                if w.current_url != current_url:
+                    current_url = w.current_url
+                    echo.err(current_url)
+            else:
+                current_url = w.current_url
+                echo.err(current_url)
+
             pout.v(item)
 
 

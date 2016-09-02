@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import os
 import tempfile
 import pickle
+import datetime
 import time
 import re
 from contextlib import contextmanager
@@ -105,11 +106,10 @@ class WishlistElement(object):
     @property
     def url(self):
         href = ""
-        for a in self.element.soup.find_all("a"):
-            if "href" in a.attrs:
-                if a.attrs["href"].startswith("/dp/"):
-                    href = "https://www.amazon.com{}".format(a.attrs["href"])
-                    break
+        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        if el and ("href" in el.attrs):
+            if el.attrs["href"].startswith("/dp/"):
+                href = "https://www.amazon.com{}".format(el.attrs["href"])
         return href
 
     @property
@@ -128,15 +128,29 @@ class WishlistElement(object):
     def price(self):
         price = 0.0
         el = self.element.soup.find("span", id=re.compile("^itemPrice_"))
-        if el:
-            price = float(el.contents[0].strip()[1:].split()[0].replace(",", ""))
+        if el and len(el.contents) > 0:
+            try:
+                price_str = el.contents[0].strip()
+                if price_str:
+                    price = float(price_str[1:].split()[0].replace(",", ""))
+            except (ValueError, IndexError):
+                price = 0.0
+
+        return price
+
+    @property
+    def marketplace_price(self):
+        price = 0.0
+        el = self.element.soup.find("span", {"class": "itemUsedAndNewPrice"})
+        if el and len(el.contents) > 0:
+            price = float(el.contents[0].replace("$", "").replace(",", ""))
         return price
 
     @property
     def title(self):
         title = ""
         el = self.element.soup.find("a", id=re.compile("^itemName_"))
-        if el:
+        if el and len(el.contents) > 0:
             title = el.contents[0].strip()
         return title
 
@@ -144,34 +158,61 @@ class WishlistElement(object):
     def comment(self):
         ret = ""
         el = self.element.soup.find("span", id=re.compile("^itemComment_"))
-        if el:
+        if el and len(el.contents) > 0:
             ret = el.contents[0].strip()
+        return ret
+
+    @property
+    def rating(self):
+        stars = 0.0
+        el = self.element.soup.find("a", {"class": "reviewStarsPopoverLink"})
+        if el:
+            el = el.find("span", {"class": "a-icon-alt"})
+            if len(el.contents) > 0:
+                stars = float(el.contents[0].strip().split()[0])
+        return stars
+
+    @property
+    def author(self):
+        author = ""
+        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        if el:
+            author = el.parent.next_sibling
+            if author:
+                author = author.strip().replace("by ", "")
+        return author
+
+    @property
+    def added(self):
+        ret = None
+        el = self.element.soup.find("div", id=re.compile("^itemAction_"))
+        el = el.find("span", {"class": "a-size-small"})
+        if el and len(el.contents) > 0:
+            ret = el.contents[0].strip().replace("Added ", "")
+            if ret:
+                ret = datetime.datetime.strptime(ret, '%B %d, %Y')
         return ret
 
     def __init__(self, element):
         self.element = element
 
     def jsonable(self):
-        lines = self.element.text.splitlines()
-
         json_item = {}
         json_item["title"] = self.title
         json_item["image"] = self.image
         json_item["uuid"] = self.uuid
         json_item["url"] = self.url
         json_item["price"] = self.price
+        json_item["marketplace_price"] = self.marketplace_price
         json_item["comment"] = self.comment
+        json_item["author"] = self.author
+        json_item["added"] = self.added.strftime('%B %d, %Y')
+        json_item["rating"] = self.rating
 
-        for j, line in enumerate(lines[1:], 1):
-            if line.startswith("Added "):
-                json_item["added"] = line.replace("Added ", "")
-
-            elif line.startswith("by "):
-                json_item["author"] = line.replace("by ", "")
-
-            else:
-                if "Used & New" in line:
-                    json_item["marketplace"] = line
+#         lines = self.element.text.splitlines()
+#         for j, line in enumerate(lines[1:], 1):
+#             if "Used & New" in line:
+#                 json_item["marketplace"] = line
 
         return json_item
 
