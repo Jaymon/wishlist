@@ -3,13 +3,24 @@
 Python library to grab your Amazon wishlist so you can mess with it programmatically.
 
 
+## Dependencies
+
+Before you can use this you have to have a few things installed, on Ubuntu, you can run these commands:
+
+    $ sudo su
+    $ apt-get install --no-install-recommends firefox
+    $ apt-get install --no-install-recommends xvfb
+
+To install the Firefox web browser and the X11 virtual file buffer.
+
+
 ## 1 minute gettings started
 
 Is your wishlist private? Then you will need to authenticate on the command line:
 
     $ wishlist auth
 
-This will have you signin and will even handle 2-factor authentication, after you signin your cookies will be saved so you can run now access your Amazon wishlist.
+This will prompt you to signin and will even handle 2-factor authentication, after you signin your cookies will be saved so you can run now access your Amazon wishlist.
 
 You can check access to your wishlist on the command line by running:
 
