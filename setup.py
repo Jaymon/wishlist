@@ -20,7 +20,7 @@ setup(
     url='http://github.com/Jaymon/{}'.format(name),
     py_modules=[name],
     license='GPLv2+',
-    #install_requires=['captain'],
+    install_requires=['captain', 'beautifulsoup4', 'selenium', 'pyvirtualdisplay'],
     classifiers=[ # https://pypi.python.org/pypi?:action=list_classifiers
         'Development Status :: 4 - Beta',
         'Environment :: Plugins',
