@@ -18,7 +18,7 @@ setup(
     author='Jay Marcyes',
     author_email='jay@marcyes.com',
     url='http://github.com/Jaymon/{}'.format(name),
-    py_modules=[name],
+    packages=[name],
     license='GPLv2+',
     install_requires=['captain', 'beautifulsoup4', 'selenium', 'pyvirtualdisplay'],
     classifiers=[ # https://pypi.python.org/pypi?:action=list_classifiers
