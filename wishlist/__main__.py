@@ -66,6 +66,7 @@ def main_dump(name):
             try:
                 item_json = item.jsonable()
                 echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
+                echo.indent(item_json["url"])
 
             except ParseError as e:
                 echo.err("{}. Failed!", i)

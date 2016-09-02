@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import datetime
 import re
+import os
 from contextlib import contextmanager
 
 from .browser import Browser, ParseError, NoSuchElementException
@@ -18,8 +19,13 @@ class WishlistElement(object):
         href = ""
         el = self.element.soup.find("a", id=re.compile("^itemName_"))
         if el and ("href" in el.attrs):
-            if el.attrs["href"].startswith("/dp/"):
-                href = "https://www.amazon.com{}".format(el.attrs["href"])
+            m = re.search("/dp/([^/]+)", el.attrs["href"])
+            if m:
+                href = "https://www.amazon.com/dp/{}/".format(m.group(1))
+                tag = os.environ.get("WISHLIST_REFERRER", "marcyescom-20")
+                if tag:
+                    href += "?tag={}".format(tag)
+
         return href
 
     @property

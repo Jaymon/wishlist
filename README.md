@@ -45,3 +45,13 @@ with Wishlist.lifecycle() as w:
 
 You can check the `wishlist.core.WishlistElement` code to understand the structure of each wishlist item.
 
+## Installation
+
+use pip:
+
+    $ pip install wishlist
+
+Or be bleeding edge:
+
+    $ pip install "git+https://github.com/Jaymon/wishlist#egg=wishlist"
+
