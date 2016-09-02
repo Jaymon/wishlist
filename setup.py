@@ -29,10 +29,9 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 2.7',
     ],
-    #test_suite = "test_wishlist",
-#     entry_points = {
-#         'console_scripts': [
-#             '{} = {}:console'.format(name, name),
-#         ],
-#     }
+    entry_points = {
+        'console_scripts': [
+            '{} = {}.__main__:console'.format(name, name),
+        ],
+    },
 )

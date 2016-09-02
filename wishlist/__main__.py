@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from captain import echo, exit, ArgError
+from captain import echo, exit as console, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
@@ -80,5 +80,5 @@ def main_dump(name):
 
 
 if __name__ == "__main__":
-    exit()
+    console()
 
