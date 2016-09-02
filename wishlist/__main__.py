@@ -54,8 +54,6 @@ def main_dump(name):
     to demonstrate (by looking at the code) how to iterate through a list"""
     with Wishlist.lifecycle() as w:
         current_url = ""
-
-        # https://www.amazon.com/gp/registry/wishlist/1XDNMA31SYSRC
         for i, item in enumerate(w.get(name), 1):
             if current_url:
                 if w.current_url != current_url:
