@@ -1,9 +1,11 @@
+from __future__ import unicode_literals
 
 from captain import echo, exit, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
-from wishlist.core import Wishlist
+from wishlist.core import Wishlist, ParseError
+
 
 def main_auth():
     """Signin to amazon so you can access private wishlists"""
@@ -48,21 +50,33 @@ def main_auth():
 
 @arg('name', help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
 def main_dump(name):
+    """This is really here just to test that I can parse a wishlist completely and
+    to demonstrate (by looking at the code) how to iterate through a list"""
     with Wishlist.lifecycle() as w:
-        w.homepage() # we load homepage to force cookies
         current_url = ""
 
         # https://www.amazon.com/gp/registry/wishlist/1XDNMA31SYSRC
-        for item in w.get(name):
+        for i, item in enumerate(w.get(name), 1):
             if current_url:
                 if w.current_url != current_url:
                     current_url = w.current_url
-                    echo.err(current_url)
+                    echo.h3(current_url)
             else:
                 current_url = w.current_url
-                echo.err(current_url)
+                echo.h3(current_url)
 
-            pout.v(item)
+            try:
+                item_json = item.jsonable()
+                echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
+
+            except ParseError as e:
+                echo.err("{}. Failed!", i)
+                echo.err(e.body)
+                echo.exception(e)
+
+            except Exception as e:
+                echo.err("{}. Failed!", i)
+                echo.exception(e)
 
 
 if __name__ == "__main__":
