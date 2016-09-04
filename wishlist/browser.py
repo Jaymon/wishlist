@@ -151,10 +151,6 @@ class Browser(object):
         finally:
             instance.close()
 
-    def homepage(self, **kwargs):
-        """loads the amazon homepage, this forces cookies to load"""
-        self.location("https://www.amazon.com", **kwargs)
-
     def location(self, url, ignore_cookies=False):
         """calls the selenium driver's .get() method, and will load cookies if they
         are available

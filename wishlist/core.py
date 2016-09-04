@@ -10,6 +10,10 @@ from .browser import Browser, ParseError, NoSuchElementException
 class WishlistElement(object):
     """Wishlist.get() returns an instance of this object"""
     @property
+    def host(self):
+        return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
+
+    @property
     def uuid(self):
         m = re.search("/dp/([^/]+)", self.url)
         return m.group(1) if m else ""
@@ -21,7 +25,7 @@ class WishlistElement(object):
         if el and ("href" in el.attrs):
             m = re.search("/dp/([^/]+)", el.attrs["href"])
             if m:
-                href = "https://www.amazon.com/dp/{}/".format(m.group(1))
+                href = "{}/dp/{}/".format(self.host, m.group(1))
                 tag = os.environ.get("WISHLIST_REFERRER", "marcyescom-20")
                 if tag:
                     href += "?tag={}".format(tag)
@@ -130,18 +134,24 @@ class WishlistElement(object):
 class Wishlist(Browser):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
+    element_class = WishlistElement
+
+    @property
+    def host(self):
+        return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
+
     @classmethod
     @contextmanager
     def lifecycle(cls):
         with super(Wishlist, cls).lifecycle() as instance:
-            instance.homepage() # we load homepage to force cookies
+            instance.homepage() # we load homepage to force cookie loading
             yield instance
 
     def get(self, name):
         """return the items of the given wishlist name"""
 
         # https://www.amazon.com/gp/registry/wishlist/NAME
-        base_url = "https://www.amazon.com/gp/registry/wishlist/{}".format(name)
+        base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
         self.location(base_url)
         driver = self.browser
         html_item = None
@@ -158,7 +168,7 @@ class Wishlist(Browser):
 
                 html_items = driver.find_elements_by_xpath("//div[starts-with(@id, 'item_')]")
                 for i, html_item in enumerate(html_items):
-                    item = WishlistElement(html_item)
+                    item = self.element_class(html_item)
                     yield item
 
         except (NoSuchElementException, ParseError) as e:
@@ -166,5 +176,5 @@ class Wishlist(Browser):
 
     def homepage(self, **kwargs):
         """loads the amazon homepage, this forces cookies to load"""
-        self.location("https://www.amazon.com", **kwargs)
+        self.location(self.host, **kwargs)
 

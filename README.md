@@ -55,3 +55,12 @@ Or be bleeding edge:
 
     $ pip install "git+https://github.com/Jaymon/wishlist#egg=wishlist"
 
+
+## Other things
+
+* This only works on **amazon.com**, because I only use **amazon.com**, if you want it to use a different Amazon site, I take pull requests :)
+
+* Would you rather use php? [There's a library for that](https://github.com/doitlikejustin/amazon-wish-lister) ([also related](https://shkspr.mobi/blog/2015/11/an-api-for-amazon-wishlists/)).
+
+* [Amazon's advertising api](http://docs.aws.amazon.com/AWSECommerceService/latest/DG/Welcome.html), this is where the officially supported wishlist api used to live.
+
