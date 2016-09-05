@@ -148,6 +148,13 @@ class Browser(object):
             instance = cls()
             yield instance
 
+        except Exception as e:
+            if instance:
+                directory = tempfile.gettempdir()
+                filename = os.path.join(directory, "selenium.png")
+                instance.browser.get_screenshot_as_file(filename)
+                raise
+
         finally:
             instance.close()
 
