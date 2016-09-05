@@ -150,13 +150,13 @@ class Wishlist(Browser):
     def get(self, name):
         """return the items of the given wishlist name"""
 
-        # https://www.amazon.com/gp/registry/wishlist/NAME
-        base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
-        self.location(base_url)
-        driver = self.browser
-        html_item = None
-
         try:
+            # https://www.amazon.com/gp/registry/wishlist/NAME
+            base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
+            self.location(base_url)
+            driver = self.browser
+            html_item = None
+
             # http://stackoverflow.com/questions/1604471/how-can-i-find-an-element-by-css-class-with-xpath
             xpath = "//ul[@class=\"a-pagination\"]"
             html_pagination = driver.find_element_by_xpath(xpath)

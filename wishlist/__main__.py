@@ -16,6 +16,7 @@ def main_auth():
         # If you access from another country, amazon might prompt to redirect to
         # country specific store, we don't want that
         if w.element_exists("#redir-opt-out"):
+            echo.out("Circumventing redirect")
             remember = w.element("#redir-opt-out")
             stay = w.element("#redir-stay-at-www")
             remember.click()
@@ -46,7 +47,7 @@ def main_auth():
             submit = w.element("#auth-signin-button")
             remember = w.element("#auth-mfa-remember-device")
             remember.click()
-            authcode = echo.prompt("2-Factor authcode: ")
+            authcode = echo.prompt("2-Factor authcode")
             code.send_keys(authcode)
             submit.click()
 

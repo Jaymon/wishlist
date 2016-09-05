@@ -151,12 +151,20 @@ class Browser(object):
 
         except Exception as e:
             if instance:
-                directory = tempfile.gettempdir()
-                filename = os.path.join(directory, "wishlist.png")
-                instance.browser.get_screenshot_as_file(filename)
-                with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
-                    f.write(instance.body)
-                raise
+                try:
+                    directory = tempfile.gettempdir()
+                    filename = os.path.join(directory, "wishlist.png")
+                    instance.browser.get_screenshot_as_file(filename)
+                except Exception as e:
+                    pass
+
+                try:
+                    with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
+                        f.write(instance.body)
+                except Exception as e:
+                    pass
+
+            raise
 
         finally:
             instance.close()
