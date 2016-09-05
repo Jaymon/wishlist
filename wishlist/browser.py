@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import os
 import tempfile
+import codecs
 import pickle
 import time
 from contextlib import contextmanager
@@ -153,7 +154,7 @@ class Browser(object):
                 directory = tempfile.gettempdir()
                 filename = os.path.join(directory, "wishlist.png")
                 instance.browser.get_screenshot_as_file(filename)
-                with open(os.path.join(directory, "wishlist.html"), "w") as f:
+                with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
                     f.write(instance.body)
                 raise
 
