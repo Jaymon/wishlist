@@ -181,6 +181,14 @@ class Browser(object):
                 for cookie in cookies:
                     driver.add_cookie(cookie)
 
+    def element_exists(self, css_selector):
+        ret = True
+        try:
+            self.browser.find_element_by_css_selector(css_selector)
+        except NoSuchElementException as e:
+            ret = False
+        return ret
+
     def element(self, css_selector):
         """wrapper around Selenium's css selector that raises ParseError if fails"""
         try:

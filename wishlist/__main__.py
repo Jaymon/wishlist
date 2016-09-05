@@ -13,6 +13,14 @@ def main_auth():
         echo.out("Requesting amazon.com")
         w.homepage(ignore_cookies=True)
 
+        # If you access from another country, amazon might prompt to redirect to
+        # country specific store, we don't want that
+        if w.element_exists("#redir-opt-out"):
+            remember = w.element("#redir-opt-out")
+            stay = w.element("#redir-stay-at-www")
+            remember.click()
+            stay.click()
+
         button = w.element("#a-autoid-0-announce")
         echo.out("Clicking sign in button")
         button.click()
