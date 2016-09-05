@@ -153,7 +153,7 @@ class Browser(object):
                 directory = tempfile.gettempdir()
                 filename = os.path.join(directory, "wishlist.png")
                 instance.browser.get_screenshot_as_file(filename)
-                with open(os.path.join(directory, "wishlist.html"), "wb") as f:
+                with open(os.path.join(directory, "wishlist.html"), "w") as f:
                     f.write(instance.body)
                 raise
 
