@@ -151,8 +151,10 @@ class Browser(object):
         except Exception as e:
             if instance:
                 directory = tempfile.gettempdir()
-                filename = os.path.join(directory, "selenium.png")
+                filename = os.path.join(directory, "wishlist.png")
                 instance.browser.get_screenshot_as_file(filename)
+                with open(os.path.join(directory, "wishlist.html"), "wb") as f:
+                    f.write(instance.body)
                 raise
 
         finally:
