@@ -4,10 +4,10 @@ import re
 import os
 from contextlib import contextmanager
 
-from .browser import Browser, ParseError, NoSuchElementException
+from .browser import Browser, ParseError, NoSuchElementException, Soup
 
 
-class WishlistElement(object):
+class WishlistElement(Soup):
     """Wishlist.get() returns an instance of this object"""
     @property
     def host(self):
@@ -21,7 +21,7 @@ class WishlistElement(object):
     @property
     def url(self):
         href = ""
-        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        el = self.soup.find("a", id=re.compile("^itemName_"))
         if el and ("href" in el.attrs):
             m = re.search("/dp/([^/]+)", el.attrs["href"])
             if m:
@@ -35,19 +35,28 @@ class WishlistElement(object):
     @property
     def image(self):
         src = ""
-        for img in self.element.soup.find_all("img"):
+        imgs = self.soup.find_all("img")
+        for img in imgs:
             if "src" in img.attrs:
                 if img.parent and img.parent.name == "a":
                     a = img.parent
                     if a.attrs["href"].startswith("/dp/"):
                         src = img.attrs["src"]
                         break
+
+        if not src:
+            for img in imgs:
+                maybe_src = img.attrs.get("src", "")
+                if "/images/I/" in maybe_src:
+                    src = maybe_src
+                    break
+
         return src
 
     @property
     def price(self):
         price = 0.0
-        el = self.element.soup.find("span", id=re.compile("^itemPrice_"))
+        el = self.soup.find("span", id=re.compile("^itemPrice_"))
         if el and len(el.contents) > 0:
             try:
                 price_str = el.contents[0].strip()
@@ -61,7 +70,7 @@ class WishlistElement(object):
     @property
     def marketplace_price(self):
         price = 0.0
-        el = self.element.soup.find("span", {"class": "itemUsedAndNewPrice"})
+        el = self.soup.find("span", {"class": "itemUsedAndNewPrice"})
         if el and len(el.contents) > 0:
             price = float(el.contents[0].replace("$", "").replace(",", ""))
         return price
@@ -69,15 +78,21 @@ class WishlistElement(object):
     @property
     def title(self):
         title = ""
-        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        el = self.soup.find("a", id=re.compile("^itemName_"))
         if el and len(el.contents) > 0:
             title = el.contents[0].strip()
+
+        else:
+            el = self.soup.find("span", id=re.compile("^itemName_"))
+            if el and len(el.contents) > 0:
+                title = el.contents[0].strip()
+
         return title
 
     @property
     def comment(self):
         ret = ""
-        el = self.element.soup.find("span", id=re.compile("^itemComment_"))
+        el = self.soup.find("span", id=re.compile("^itemComment_"))
         if el and len(el.contents) > 0:
             ret = el.contents[0].strip()
         return ret
@@ -85,7 +100,7 @@ class WishlistElement(object):
     @property
     def rating(self):
         stars = 0.0
-        el = self.element.soup.find("a", {"class": "reviewStarsPopoverLink"})
+        el = self.soup.find("a", {"class": "reviewStarsPopoverLink"})
         if el:
             el = el.find("span", {"class": "a-icon-alt"})
             if len(el.contents) > 0:
@@ -95,7 +110,7 @@ class WishlistElement(object):
     @property
     def author(self):
         author = ""
-        el = self.element.soup.find("a", id=re.compile("^itemName_"))
+        el = self.soup.find("a", id=re.compile("^itemName_"))
         if el:
             author = el.parent.next_sibling
             if author:
@@ -105,7 +120,7 @@ class WishlistElement(object):
     @property
     def added(self):
         ret = None
-        el = self.element.soup.find("div", id=re.compile("^itemAction_"))
+        el = self.soup.find("div", id=re.compile("^itemAction_"))
         el = el.find("span", {"class": "a-size-small"})
         if el and len(el.contents) > 0:
             ret = el.contents[0].strip().replace("Added ", "")
@@ -113,8 +128,12 @@ class WishlistElement(object):
                 ret = datetime.datetime.strptime(ret, '%B %d, %Y')
         return ret
 
+    @property
+    def body(self):
+        return self.soup.prettify()
+
     def __init__(self, element):
-        self.element = element
+        self.soup = self.soupify(element)
 
     def jsonable(self):
         json_item = {}
@@ -131,7 +150,7 @@ class WishlistElement(object):
         return json_item
 
 
-class Wishlist(Browser):
+class Wishlist(Browser, Soup):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
     element_class = WishlistElement
@@ -147,6 +166,39 @@ class Wishlist(Browser):
             instance.homepage() # we load homepage to force cookie loading
             yield instance
 
+
+    def get_items_from_body(self, body):
+        """this will return the wishlist elements on the current page"""
+        soup = self.soupify(body)
+        html_items = soup.findAll("div", {"id": re.compile("^item_")})
+        for i, html_item in enumerate(html_items):
+            item = self.element_class(html_item)
+            yield item
+
+    def get_total_pages_from_body(self, body):
+        """return the total number of pages of the wishlist
+
+        body -- string -- the complete html page
+        """
+        page = 0
+        soup = self.soupify(body)
+
+        try:
+            #el = soup.find("ul", id=re.compile("^itemAction_"))
+            el = soup.find("ul", {"class": "a-pagination"})
+            #el = el.find("li", {"class": "a-last"})
+            els = el.findAll("li", {"class": re.compile("^a-")})
+            #pout.v(len(els))
+            #pout.v(els[-2])
+            el = els[-2]
+            if len(el.contents) and len(el.contents[0].contents):
+                page = int(el.contents[0].contents[0].strip())
+
+        except AttributeError:
+            raise ParseError("Could not find pagination, is this a wishlist page?")
+
+        return page
+
     def get(self, name):
         """return the items of the given wishlist name"""
 
@@ -154,25 +206,23 @@ class Wishlist(Browser):
             # https://www.amazon.com/gp/registry/wishlist/NAME
             base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
             self.location(base_url)
-            driver = self.browser
-            html_item = None
-
-            # http://stackoverflow.com/questions/1604471/how-can-i-find-an-element-by-css-class-with-xpath
-            xpath = "//ul[@class=\"a-pagination\"]"
-            html_pagination = driver.find_element_by_xpath(xpath)
-            page_count = int(html_pagination.text.splitlines()[-2])
+            soup = self.soupify(self.body)
+            page_count = self.get_total_pages_from_body(soup)
+            item = None
 
             for page in range(1, page_count + 1):
                 if page > 1:
                     self.location(base_url + "?page={}".format(page))
+                    soup = self.soupify(self.body)
 
-                html_items = driver.find_elements_by_xpath("//div[starts-with(@id, 'item_')]")
-                for i, html_item in enumerate(html_items):
-                    item = self.element_class(html_item)
+                for i, item in enumerate(self.get_items_from_body(soup)):
                     yield item
 
         except (NoSuchElementException, ParseError) as e:
-            raise ParseError(html_item.body, e)
+            if item:
+                raise ParseError(item.body, e)
+            else:
+                raise
 
     def homepage(self, **kwargs):
         """loads the amazon homepage, this forces cookies to load"""

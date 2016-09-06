@@ -3,65 +3,92 @@ from __future__ import unicode_literals
 from unittest import TestCase
 import os
 from contextlib import contextmanager
+import codecs
+import logging
+import sys
 
 import testdata
 
-from wishlist.core import WishlistElement, WebDriver, Wishlist
+from wishlist.core import WishlistElement, Wishlist
 
 
-class WishlistElementTest(TestCase):
+# configure root logger
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler(stream=sys.stderr)
+log_formatter = logging.Formatter('[%(levelname)s] %(message)s')
+log_handler.setFormatter(log_formatter)
+logger.addHandler(log_handler)
 
-    @contextmanager
-    def element_from_file(self, filename):
+
+class BaseTestCase(TestCase):
+    def get_body(self, filename):
         basepath = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
         path = os.path.join(basepath, "testdata", filename)
+        with codecs.open(path, encoding='utf-8', mode='r') as f:
+        #with open(path) as f:
+            body = f.read()
+        return body
 
-        with Wishlist.lifecycle() as w:
-            #w.location("file://testdata/failed_wishilist_element_2.html")
-            w.location("file://{}".format(path))
-            element = w.browser.find_element_by_tag_name("div")
-            we = WishlistElement(element)
-            yield we
 
-    def test_comment_with_moneysign(self):
-        with Wishlist.lifecycle() as w:
-            #w.location("file://testdata/failed_wishilist_element_2.html")
-            w.location("file:///vagrant/testdata/failed_wishlist_element_2.html")
-            element = w.browser.find_element_by_tag_name("div")
-            we = WishlistElement(element)
-            we_json = we.jsonable()
-            self.assertTrue(we_json["comment"].startswith("$"))
-            self.assertEqual(21.59, we_json["price"])
+class WishlistTest(BaseTestCase):
+    def test_get_total_pages_from_body(self):
+        w = Wishlist()
+        body = self.get_body("wishlist-1.html")
+        page = w.get_total_pages_from_body(body)
+        self.assertEqual(28, page)
 
+    def test_get_items_from_body(self):
+        count = 0
+        body = self.get_body("wishlist-1.html")
+        w = Wishlist()
+        for item in w.get_items_from_body(body):
+            self.assertEqual(10, len(item.jsonable()))
+            count += 1
+        self.assertEqual(25, count)
+
+
+class WishlistElementTest(BaseTestCase):
+    def get_item(self, filename):
+        body = self.get_body(filename)
+        we = WishlistElement(body)
+        return we
 
     def test_unavailable(self):
-        with Wishlist.lifecycle() as w:
-            #w.location("file://testdata/failed_wishilist_element_2.html")
-            w.location("file:///vagrant/testdata/failed_wishlist_element_1.html")
-            element = w.browser.find_element_by_tag_name("div")
-            we = WishlistElement(element)
-            we_json = we.jsonable()
-            self.assertEqual("", we_json["title"])
-            self.assertEqual(0.0, we_json["price"])
+        we = self.get_item("failed_wishlist_element_1.html")
+        we_json = we.jsonable()
+        self.assertTrue(bool(we_json["title"]))
+        self.assertEqual(0.0, we_json["price"])
 
+    def test_comment_with_moneysign(self):
+        we = self.get_item("failed_wishlist_element_2.html")
+        we_json = we.jsonable()
+        self.assertTrue(we_json["comment"].startswith("$"))
+        self.assertEqual(21.59, we_json["price"])
 
     def test_marketplace_price(self):
-        with self.element_from_file("failed_wishlist_element_3.html") as we:
-            we_json = we.jsonable()
-            self.assertEqual(0.01, we_json["marketplace_price"])
-            self.assertEqual(0.0, we_json["price"])
-            #pout.v(we.jsonable())
+        we = self.get_item("failed_wishlist_element_3.html")
+        we_json = we.jsonable()
+        self.assertEqual(0.01, we_json["marketplace_price"])
+        self.assertEqual(0.0, we_json["price"])
+
+    def test_no_rating(self):
+        we = self.get_item("failed_wishlist_element_4.html")
+        we_json = we.jsonable()
+        self.assertEqual(0.0, we_json["rating"])
 
     def test_marketplace_price_thousand(self):
         # test WishlistElement price with 1,140.96
-        with self.element_from_file("failed_wishlist_element_5.html") as we:
-            we_json = we.jsonable()
-            #pout.v(we.jsonable())
-            self.assertEqual(1424.05, we_json["marketplace_price"])
+        we = self.get_item("failed_wishlist_element_5.html")
+        we_json = we.jsonable()
+        self.assertEqual(1424.05, we_json["marketplace_price"])
 
+    def test_unavailable_2(self):
+        """test an item that has no url"""
+        we = self.get_item("failed_wishlist_element_6.html")
+        we_json = we.jsonable()
+        self.assertTrue(bool(we_json["title"]))
+        self.assertFalse(bool(we_json["url"]))
+        self.assertTrue(bool(we_json["image"]))
 
-    def test_no_rating(self):
-        with self.element_from_file("failed_wishlist_element_4.html") as we:
-            we_json = we.jsonable()
-            self.assertEqual(0.0, we_json["rating"])
 

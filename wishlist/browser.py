@@ -3,6 +3,7 @@ import os
 import tempfile
 import codecs
 import pickle
+import logging
 import time
 from contextlib import contextmanager
 try:
@@ -15,10 +16,14 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from pyvirtualdisplay import Display
 from bs4 import BeautifulSoup
+from bs4 import Tag
 
 from selenium.webdriver.firefox.webdriver import WebDriver as BaseWebDriver
 #from selenium.webdriver.firefox.webelement import FirefoxWebElement as BaseWebElement # selenium 3.0
 from selenium.webdriver.remote.webelement import WebElement as BaseWebElement # selenium <3.0
+
+
+logger = logging.getLogger(__name__)
 
 
 class ParseError(RuntimeError):
@@ -28,6 +33,13 @@ class ParseError(RuntimeError):
         self.body = body
         self.error = e
         super(ParseError, self).__init__(e.message)
+
+
+class Soup(object):
+    def soupify(self, body):
+        if isinstance(body, Tag): return body
+        soup = BeautifulSoup(body, "html.parser")
+        return soup
 
 
 class WebElement(BaseWebElement):
@@ -150,6 +162,7 @@ class Browser(object):
             yield instance
 
         except Exception as e:
+            logger.exception(e)
             if instance:
                 try:
                     directory = tempfile.gettempdir()
@@ -176,6 +189,7 @@ class Browser(object):
         url -- string -- the full url (scheme, domain, path)
         ignore_cookies -- boolean -- if True then don't try and load cookies
         """
+        logger.debug("Loading location {}".format(url))
         driver = self.browser
         driver.get(url)
         url_bits = urlparse.urlparse(url)
@@ -184,10 +198,13 @@ class Browser(object):
 
         if not ignore_cookies:
             if domain and (domain not in self.domains):
+                logger.debug("Loading cookies for {}".format(domain))
                 self.domains[domain] = domain
                 cookies = Cookies(domain)
-                for cookie in cookies:
+                count = 0
+                for count, cookie in enumerate(cookies, 1):
                     driver.add_cookie(cookie)
+                logger.debug("Loaded {} cookies".format(count))
 
     def element_exists(self, css_selector):
         ret = True
@@ -203,6 +220,7 @@ class Browser(object):
             return self.browser.find_element_by_css_selector(css_selector)
 
         except NoSuchElementException as e:
+            logger.exception(e)
             raise ParseError(self.body, e)
 
     def wait_for_element(self, css_selector, seconds):
@@ -224,11 +242,14 @@ class Browser(object):
 
     def save(self):
         """save the browser session for the given domain"""
+        logger.debug("Saving cookies for {}".format(self.domain))
         cookie = Cookies(self.domain)
         cookie.save(self.browser.get_cookies())
 
     def close(self):
         """quit the browser and power down the virtual display"""
+        logger.debug("Closing down browser")
         self.browser.close()
+        logger.debug("Shutting down display")
         self.display.stop()
 
