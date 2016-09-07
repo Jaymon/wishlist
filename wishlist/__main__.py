@@ -62,29 +62,36 @@ def main_dump(name):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""
     with Wishlist.lifecycle() as w:
-        current_url = ""
-        for i, item in enumerate(w.get(name), 1):
-            if current_url:
-                if w.current_url != current_url:
+        try:
+            current_url = ""
+            for i, item in enumerate(w.get(name), 1):
+                if current_url:
+                    if w.current_url != current_url:
+                        current_url = w.current_url
+                        echo.h3(current_url)
+                else:
                     current_url = w.current_url
                     echo.h3(current_url)
-            else:
-                current_url = w.current_url
-                echo.h3(current_url)
 
-            try:
-                item_json = item.jsonable()
-                echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
-                echo.indent(item_json["url"])
+                try:
+                    item_json = item.jsonable()
+                    echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
+                    echo.indent(item_json["url"])
 
-            except ParseError as e:
-                echo.err("{}. Failed!", i)
-                echo.err(e.body)
-                echo.exception(e)
+                except ParseError as e:
+                    echo.err("{}. Failed!", i)
+                    echo.err(e.body)
+                    echo.exception(e)
 
-            except Exception as e:
-                echo.err("{}. Failed!", i)
-                echo.exception(e)
+                except KeyboardInterrupt:
+                    raise
+
+                except Exception as e:
+                    echo.err("{}. Failed!", i)
+                    echo.exception(e)
+
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

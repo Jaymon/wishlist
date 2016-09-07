@@ -3,7 +3,7 @@ import logging
 from .core import Wishlist, WishlistElement, ParseError
 
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 
 # get rid of "No handler found" warnings (cribbed from requests)

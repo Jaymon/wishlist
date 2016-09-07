@@ -19,8 +19,9 @@ from bs4 import BeautifulSoup
 from bs4 import Tag
 
 from selenium.webdriver.firefox.webdriver import WebDriver as BaseWebDriver
+#from selenium.webdriver.chrome.options import Options
 #from selenium.webdriver.firefox.webelement import FirefoxWebElement as BaseWebElement # selenium 3.0
-from selenium.webdriver.remote.webelement import WebElement as BaseWebElement # selenium <3.0
+#from selenium.webdriver.remote.webelement import WebElement as BaseWebElement # selenium <3.0
 
 
 logger = logging.getLogger(__name__)
@@ -42,29 +43,29 @@ class Soup(object):
         return soup
 
 
-class WebElement(BaseWebElement):
-    @property
-    def body(self):
-        """Return the body of this particular element"""
-        # http://stackoverflow.com/a/22227980/5006
-        return self.get_attribute('innerHTML')
-
-    @property
-    def soup(self):
-        """Return a beautiful soup object with the contents of this element"""
-        soup = getattr(self, "_soup", None)
-        if soup is None:
-            soup = BeautifulSoup(self.body, "html.parser")
-            self._soup = soup
-        return soup
-
-
-class WebDriver(BaseWebDriver):
-    _web_element_cls = WebElement # selenium 3.0
-
-    def create_web_element(self, element_id):
-        # TODO -- remove when upgrading to selenium 3.0
-        return WebElement(self, element_id, w3c=self.w3c)
+# class WebElement(BaseWebElement):
+#     @property
+#     def body(self):
+#         """Return the body of this particular element"""
+#         # http://stackoverflow.com/a/22227980/5006
+#         return self.get_attribute('innerHTML')
+# 
+#     @property
+#     def soup(self):
+#         """Return a beautiful soup object with the contents of this element"""
+#         soup = getattr(self, "_soup", None)
+#         if soup is None:
+#             soup = BeautifulSoup(self.body, "html.parser")
+#             self._soup = soup
+#         return soup
+# 
+# 
+# class WebDriver(BaseWebDriver):
+#     _web_element_cls = WebElement # selenium 3.0
+# 
+#     def create_web_element(self, element_id):
+#         # TODO -- remove when upgrading to selenium 3.0
+#         return WebElement(self, element_id, w3c=self.w3c)
 
 
 class Cookies(object):
@@ -135,18 +136,23 @@ class Browser(object):
             # http://coreygoldberg.blogspot.com/2011/06/python-headless-selenium-webdriver.html
             self.display = Display(visible=0, size=(800, 600))
             self.display.start()
-            browser = self.firefox
+            browser = self.chrome
             #browser._web_element_cls = WebElement
             self._browser = browser
 
         return browser
 
     @property
-    def firefox(self):
-        profile = webdriver.FirefoxProfile()
-        #firefox = webdriver.Firefox(firefox_profile=profile)
-        firefox = WebDriver(firefox_profile=profile)
-        return firefox
+    def chrome(self):
+        chrome = webdriver.Chrome()
+        return chrome
+
+#     @property
+#     def firefox(self):
+#         profile = webdriver.FirefoxProfile()
+#         #firefox = webdriver.Firefox(firefox_profile=profile)
+#         firefox = WebDriver(firefox_profile=profile)
+#         return firefox
 
     @classmethod
     @contextmanager
