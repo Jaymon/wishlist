@@ -5,11 +5,12 @@ from captain.decorators import arg, args
 
 from wishlist import __version__
 from wishlist.core import Wishlist, ParseError
+from wishlist.browser import RecoverableCrash
 
 
 def main_auth():
     """Signin to amazon so you can access private wishlists"""
-    with Wishlist.lifecycle() as w:
+    with Wishlist.open() as w:
         echo.out("Requesting amazon.com")
         w.homepage(ignore_cookies=True)
 
@@ -58,41 +59,56 @@ def main_auth():
 
 
 @arg('name', help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
-def main_dump(name):
+@arg('--page', dest="current_page", type=int, default=0, help="The Wishlist page you want to start on")
+def main_dump(name, current_page):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""
-    with Wishlist.lifecycle() as w:
+    crash_count = 0
+    max_crash_count = 5
+    while crash_count < max_crash_count:
         try:
-            current_url = ""
-            for i, item in enumerate(w.get(name), 1):
-                if current_url:
-                    if w.current_url != current_url:
+            with Wishlist.open() as w:
+                current_url = ""
+                for i, item in enumerate(w.get(name, current_page), 1):
+                    if current_url:
+                        if w.current_url != current_url:
+                            current_url = w.current_url
+                            echo.h3(current_url)
+                    else:
                         current_url = w.current_url
                         echo.h3(current_url)
-                else:
-                    current_url = w.current_url
-                    echo.h3(current_url)
 
-                try:
-                    item_json = item.jsonable()
-                    echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
-                    echo.indent(item_json["url"])
+                    try:
+                        item_json = item.jsonable()
+                        echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
+                        echo.indent(item_json["url"])
 
-                except ParseError as e:
-                    echo.err("{}. Failed!", i)
-                    echo.err(e.body)
-                    echo.exception(e)
+                    except ParseError as e:
+                        echo.err("{}. Failed!", i)
+                        echo.err(e.body)
+                        echo.exception(e)
 
-                except KeyboardInterrupt:
-                    raise
+                    except KeyboardInterrupt:
+                        raise
 
-                except Exception as e:
-                    echo.err("{}. Failed!", i)
-                    echo.exception(e)
+                    except Exception as e:
+                        echo.err("{}. Failed!", i)
+                        echo.exception(e)
+
+                    finally:
+                        current_page = w.current_page
 
         except KeyboardInterrupt:
-            pass
+            break
 
+        except RecoverableCrash:
+            crash_count += 1
+            if crash_count > max_crash_count:
+                raise
+
+        else:
+            echo.out("Done with wishlist, {} total pages", current_page)
+            break
 
 if __name__ == "__main__":
     console()

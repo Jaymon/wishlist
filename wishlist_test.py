@@ -34,6 +34,16 @@ class BaseTestCase(TestCase):
 class WishlistTest(BaseTestCase):
     def test_get_total_pages_from_body(self):
         w = Wishlist()
+        body = self.get_body("wishlist-pagination-last.html")
+        page = w.get_total_pages_from_body(body)
+        self.assertEqual(28, page)
+
+        w = Wishlist()
+        body = self.get_body("wishlist-pagination-pg7.html")
+        page = w.get_total_pages_from_body(body)
+        self.assertEqual(28, page)
+
+        w = Wishlist()
         body = self.get_body("wishlist-1.html")
         page = w.get_total_pages_from_body(body)
         self.assertEqual(28, page)

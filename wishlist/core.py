@@ -4,7 +4,10 @@ import re
 import os
 from contextlib import contextmanager
 
-from .browser import Browser, ParseError, NoSuchElementException, Soup
+from .browser import Browser, ParseError, Soup
+from .browser import NoSuchElementException, \
+    WebDriverException, \
+    NoSuchWindowException
 
 
 class WishlistElement(Soup):
@@ -150,7 +153,7 @@ class WishlistElement(Soup):
         return json_item
 
 
-class Wishlist(Browser, Soup):
+class Wishlist(Browser):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
     element_class = WishlistElement
@@ -166,6 +169,13 @@ class Wishlist(Browser, Soup):
             instance.homepage() # we load homepage to force cookie loading
             yield instance
 
+    @classmethod
+    @contextmanager
+    def open(cls):
+        with super(Wishlist, cls).open() as instance:
+            instance.homepage() # we load homepage to force cookie loading
+            instance.current_page = 0
+            yield instance
 
     def get_items_from_body(self, body):
         """this will return the wishlist elements on the current page"""
@@ -199,30 +209,41 @@ class Wishlist(Browser, Soup):
 
         return page
 
-    def get(self, name):
+    def get_wishlist_url(self, name, page):
+        base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
+        if page > 1:
+            base_url += "?page={}".format(page)
+        return base_url
+
+    def get(self, name, page=0):
         """return the items of the given wishlist name"""
 
-        try:
-            # https://www.amazon.com/gp/registry/wishlist/NAME
-            base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
-            self.location(base_url)
-            soup = self.soupify(self.body)
-            page_count = self.get_total_pages_from_body(soup)
-            item = None
+        crash_count = 0
+        page = page if page > 1 else 1
+        self.current_page = page
 
-            for page in range(1, page_count + 1):
-                if page > 1:
-                    self.location(base_url + "?page={}".format(page))
-                    soup = self.soupify(self.body)
+        soup = None
+        page_count = None
+
+        while True:
+            try:
+                # https://www.amazon.com/gp/registry/wishlist/NAME
+                self.location(self.get_wishlist_url(name, page))
+                soup = self.soupify(self.body)
+
+                if page_count is None:
+                    page_count = self.get_total_pages_from_body(soup)
 
                 for i, item in enumerate(self.get_items_from_body(soup)):
                     yield item
 
-        except (NoSuchElementException, ParseError) as e:
-            if item:
-                raise ParseError(item.body, e)
-            else:
-                raise
+            finally:
+                page += 1
+                if page_count is None or page > page_count:
+                    break
+
+                self.current_page = page
+                soup = None
 
     def homepage(self, **kwargs):
         """loads the amazon homepage, this forces cookies to load"""

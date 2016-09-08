@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import os
 import tempfile
+import sys
 import codecs
 import pickle
 import logging
@@ -13,7 +14,9 @@ except ImportError:
 
 from selenium import webdriver
 #from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, \
+    WebDriverException, \
+    NoSuchWindowException
 from pyvirtualdisplay import Display
 from bs4 import BeautifulSoup
 from bs4 import Tag
@@ -22,6 +25,8 @@ from selenium.webdriver.firefox.webdriver import WebDriver as BaseWebDriver
 #from selenium.webdriver.chrome.options import Options
 #from selenium.webdriver.firefox.webelement import FirefoxWebElement as BaseWebElement # selenium 3.0
 #from selenium.webdriver.remote.webelement import WebElement as BaseWebElement # selenium <3.0
+
+from .compat import *
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +39,12 @@ class ParseError(RuntimeError):
         self.body = body
         self.error = e
         super(ParseError, self).__init__(e.message)
+
+
+class RecoverableCrash(IOError):
+    def __init__(self, e):
+        self.error = e
+        super(RecoverableCrash, self).__init__(e.message)
 
 
 class Soup(object):
@@ -112,9 +123,12 @@ class Cookies(object):
         self.domain = domain
 
 
-class Browser(object):
+class Browser(Soup):
     """This is a wrapper around selenium and pyvirtualdisplay to make browsering
-    from the command line easier"""
+    from the command line easier
+
+    link -- Selinium source -- https://github.com/SeleniumHQ/selenium/tree/master/py
+    """
     @property
     def body(self):
         """return the body of the current page"""
@@ -133,14 +147,29 @@ class Browser(object):
         should use this over the .firefox property"""
         browser = getattr(self, "_browser", None)
         if browser is None:
-            # http://coreygoldberg.blogspot.com/2011/06/python-headless-selenium-webdriver.html
-            self.display = Display(visible=0, size=(800, 600))
-            self.display.start()
             browser = self.chrome
             #browser._web_element_cls = WebElement
             self._browser = browser
 
         return browser
+
+    @browser.deleter
+    def browser(self):
+        try:
+            self._browser.close()
+            del self._browser
+        except (WebDriverException, AttributeError):
+            pass
+
+    @property
+    def display(self):
+        display = getattr(self, "_display", None)
+        if display is None:
+            # http://coreygoldberg.blogspot.com/2011/06/python-headless-selenium-webdriver.html
+            display = Display(visible=0, size=(800, 600))
+            display.start()
+            self._display = display
+        return display
 
     @property
     def chrome(self):
@@ -154,21 +183,31 @@ class Browser(object):
 #         firefox = WebDriver(firefox_profile=profile)
 #         return firefox
 
+
     @classmethod
     @contextmanager
-    def lifecycle(cls):
+    def open(cls):
         """Where all the magic happens, you use this to start the virtual display
         and power up the browser
 
-        with Browser.lifecycle() as browser:
+        with Browser.open() as browser:
             browser.location("http://example.com")
         """
         try:
             instance = cls()
+            # start up the display
+            instance.display
             yield instance
+
+        except WebDriverException as e:
+            logger.exception(e)
+            del instance.browser
+            raise RecoverableCrash(e)
 
         except Exception as e:
             logger.exception(e)
+            exc_info = sys.exc_info()
+
             if instance:
                 try:
                     directory = tempfile.gettempdir()
@@ -183,7 +222,51 @@ class Browser(object):
                 except Exception as e:
                     pass
 
-            raise
+            reraise(*exc_info)
+
+        finally:
+            instance.close()
+
+
+
+
+
+
+    # DEPRECATED 9-7-2016, use open() instead
+    @classmethod
+    @contextmanager
+    def lifecycle(cls):
+        """Where all the magic happens, you use this to start the virtual display
+        and power up the browser
+
+        with Browser.lifecycle() as browser:
+            browser.location("http://example.com")
+        """
+        try:
+            instance = cls()
+            # start up the display
+            instance.display
+            yield instance
+
+        except Exception as e:
+            logger.exception(e)
+            exc_info = sys.exc_info()
+
+            if instance:
+                try:
+                    directory = tempfile.gettempdir()
+                    filename = os.path.join(directory, "wishlist.png")
+                    instance.browser.get_screenshot_as_file(filename)
+                except Exception as e:
+                    pass
+
+                try:
+                    with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
+                        f.write(instance.body)
+                except Exception as e:
+                    pass
+
+            reraise(*exc_info)
 
         finally:
             instance.close()
@@ -255,7 +338,12 @@ class Browser(object):
     def close(self):
         """quit the browser and power down the virtual display"""
         logger.debug("Closing down browser")
-        self.browser.close()
+        try:
+            self.browser.close()
+        except Exception as e:
+            logger.warn("Browser close failed with {}".format(e.message))
+            pass
+
         logger.debug("Shutting down display")
         self.display.stop()
 
