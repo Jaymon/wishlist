@@ -8,10 +8,19 @@ Python library to grab your Amazon wishlist so you can mess with it programmatic
 Before you can use this you have to have a few things installed, on Ubuntu, you can run these commands:
 
     $ sudo su
-    $ apt-get install --no-install-recommends firefox
     $ apt-get install --no-install-recommends xvfb
 
-To install the Firefox web browser and the X11 virtual file buffer.
+And you need to install Chrome:
+
+    $ apt-get install --no-install-recommends libxss1 libappindicator1 libindicator7 
+    $ apt-get install --no-install-recommends gconf-service libasound2 libnspr4 libnss3
+    $ apt-get install --no-install-recommends libpango1.0-0 xdg-utils fonts-liberation
+    $ wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    $ dpkg -i google-chrome*.deb
+    $ apt-get install unzip
+    $ LATEST=$(wget -q -O - http://chromedriver.storage.googleapis.com/LATEST_RELEASE)
+    $ wget http://chromedriver.storage.googleapis.com/$LATEST/chromedriver_linux64.zip
+    $ unzip chromedriver_linux64.zip && ln -s $PWD/chromedriver /usr/local/bin/chromedriver
 
 
 ## 1 minute gettings started
@@ -37,7 +46,7 @@ If you wanted to do something in another python script, you can do:
 from wishlist.core import Wishlist, ParseError
 
 name = "9YDNFG31NSSRL"
-with Wishlist.lifecycle() as w:
+with Wishlist.open() as w:
     for item in w.get(name):
         # do something with the item
         pass
