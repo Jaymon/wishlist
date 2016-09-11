@@ -14,14 +14,16 @@ except ImportError:
 
 from selenium import webdriver
 #from selenium.webdriver.common.keys import Keys
+# https://github.com/SeleniumHQ/selenium/blob/master/py/selenium/common/exceptions.py
 from selenium.common.exceptions import NoSuchElementException, \
     WebDriverException, \
     NoSuchWindowException
 from pyvirtualdisplay import Display
 from bs4 import BeautifulSoup
 from bs4 import Tag
+import requests
 
-from selenium.webdriver.firefox.webdriver import WebDriver as BaseWebDriver
+#from selenium.webdriver.firefox.webdriver import WebDriver as BaseWebDriver
 #from selenium.webdriver.chrome.options import Options
 #from selenium.webdriver.firefox.webelement import FirefoxWebElement as BaseWebElement # selenium 3.0
 #from selenium.webdriver.remote.webelement import WebElement as BaseWebElement # selenium <3.0
@@ -49,39 +51,39 @@ class RecoverableCrash(IOError):
 
 class Soup(object):
     def soupify(self, body):
+        # https://www.crummy.com/software/BeautifulSoup/
+        # docs: https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+        # bs4 codebase: http://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/files
         if isinstance(body, Tag): return body
         soup = BeautifulSoup(body, "html.parser")
         return soup
 
 
-# class WebElement(BaseWebElement):
-#     @property
-#     def body(self):
-#         """Return the body of this particular element"""
-#         # http://stackoverflow.com/a/22227980/5006
-#         return self.get_attribute('innerHTML')
-# 
-#     @property
-#     def soup(self):
-#         """Return a beautiful soup object with the contents of this element"""
-#         soup = getattr(self, "_soup", None)
-#         if soup is None:
-#             soup = BeautifulSoup(self.body, "html.parser")
-#             self._soup = soup
-#         return soup
-# 
-# 
-# class WebDriver(BaseWebDriver):
-#     _web_element_cls = WebElement # selenium 3.0
-# 
-#     def create_web_element(self, element_id):
-#         # TODO -- remove when upgrading to selenium 3.0
-#         return WebElement(self, element_id, w3c=self.w3c)
-
-
 class Cookies(object):
     """This will write and read cookies for a Browser instance, calling Browser.location()
-    will use this class to load cookies for the given domain if they are available"""
+    will use this class to load cookies for the given domain if they are available
+
+    https://www.quora.com/Is-there-a-way-to-keep-the-session-after-login-with-Selenium-Python
+    http://stackoverflow.com/a/15058521/5006
+    http://stackoverflow.com/questions/30791771/persistent-selenium-cookies-in-python
+    https://groups.google.com/forum/#!topic/selenium-users/iHuoa5HTzzA
+
+    alternative to cookies, creating a profile (Firefox specific which is why I didn't
+    do it, so I could switch to chrome) http://stackoverflow.com/a/5595349/5006
+    """
+    @property
+    def jar(self):
+        """Returns all the cookies as a CookieJar file"""
+        jar = requests.cookies.RequestsCookieJar()
+        for c in self:
+            name = c.pop("name")
+            value = c.pop("value")
+            c["rest"] = {"httpOnly": c.pop("httpOnly", None)}
+            c["expires"] = c.pop("expiry", None)
+
+            jar.set(name, value, **c)
+        return jar
+
     @property
     def directory(self):
         directory = getattr(self, "_directory", None)
@@ -128,11 +130,13 @@ class Browser(Soup):
     from the command line easier
 
     link -- Selinium source -- https://github.com/SeleniumHQ/selenium/tree/master/py
+    link -- https://pypi.python.org/pypi/selenium
     """
     @property
     def body(self):
         """return the body of the current page"""
         # http://stackoverflow.com/a/7866938/5006
+        # http://stackoverflow.com/a/16114362/5006
         return self.browser.page_source
 
     @property
@@ -173,6 +177,12 @@ class Browser(Soup):
 
     @property
     def chrome(self):
+        # https://github.com/SeleniumHQ/selenium/blob/master/py/selenium/webdriver/remote/webdriver.py
+        # http://www.guguncube.com/2983/python-testing-selenium-with-google-chrome
+        # https://gist.github.com/addyosmani/5336747
+        # http://blog.likewise.org/2015/01/setting-up-chromedriver-and-the-selenium-webdriver-python-bindings-on-ubuntu-14-dot-04/
+        # https://sites.google.com/a/chromium.org/chromedriver/getting-started
+        # http://stackoverflow.com/questions/8255929/running-webdriver-chrome-with-selenium
         chrome = webdriver.Chrome()
         return chrome
 
@@ -195,81 +205,33 @@ class Browser(Soup):
         """
         try:
             instance = cls()
-            # start up the display
+            # start up the display (if available)
             instance.display
             yield instance
-
-        except WebDriverException as e:
-            logger.exception(e)
-            del instance.browser
-            raise RecoverableCrash(e)
 
         except Exception as e:
             logger.exception(e)
             exc_info = sys.exc_info()
-
             if instance:
-                try:
-                    directory = tempfile.gettempdir()
-                    filename = os.path.join(directory, "wishlist.png")
-                    instance.browser.get_screenshot_as_file(filename)
-                except Exception as e:
-                    pass
-
-                try:
-                    with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
-                        f.write(instance.body)
-                except Exception as e:
-                    pass
-
+                instance.handle_error(e)
             reraise(*exc_info)
 
         finally:
             instance.close()
 
-
-
-
-
-
-    # DEPRECATED 9-7-2016, use open() instead
-    @classmethod
-    @contextmanager
-    def lifecycle(cls):
-        """Where all the magic happens, you use this to start the virtual display
-        and power up the browser
-
-        with Browser.lifecycle() as browser:
-            browser.location("http://example.com")
-        """
+    def handle_error(self, e):
         try:
-            instance = cls()
-            # start up the display
-            instance.display
-            yield instance
-
+            directory = tempfile.gettempdir()
+            filename = os.path.join(directory, "wishlist.png")
+            instance.browser.get_screenshot_as_file(filename)
         except Exception as e:
-            logger.exception(e)
-            exc_info = sys.exc_info()
+            pass
 
-            if instance:
-                try:
-                    directory = tempfile.gettempdir()
-                    filename = os.path.join(directory, "wishlist.png")
-                    instance.browser.get_screenshot_as_file(filename)
-                except Exception as e:
-                    pass
-
-                try:
-                    with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
-                        f.write(instance.body)
-                except Exception as e:
-                    pass
-
-            reraise(*exc_info)
-
-        finally:
-            instance.close()
+        try:
+            with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
+                f.write(instance.body)
+        except Exception as e:
+            pass
 
     def location(self, url, ignore_cookies=False):
         """calls the selenium driver's .get() method, and will load cookies if they
@@ -314,6 +276,7 @@ class Browser(Soup):
 
     def wait_for_element(self, css_selector, seconds):
         # ??? -- not sure this is needed or is better than builtin methods
+        # http://stackoverflow.com/questions/26566799/selenium-python-how-to-wait-until-the-page-is-loaded
         elem = None
         driver = self.browser
         for count in range(seconds):
@@ -340,10 +303,95 @@ class Browser(Soup):
         logger.debug("Closing down browser")
         try:
             self.browser.close()
+            del self.browser
         except Exception as e:
             logger.warn("Browser close failed with {}".format(e.message))
             pass
 
         logger.debug("Shutting down display")
         self.display.stop()
+
+
+class SimpleBrowser(Browser):
+    @property
+    def body(self):
+        return self.response.content
+
+    @property
+    def current_url(self):
+        """return the current url"""
+        # http://stackoverflow.com/questions/15985339/how-do-i-get-current-url-in-selenium-webdriver-2-python
+        return self.response.url
+
+    @property
+    def browser(self):
+        browser = getattr(self, "_browser", None)
+        if browser is None:
+            browser = requests.Session()
+            browser.headers.update(
+                {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"}
+            )
+            self._browser = browser
+        return browser
+
+    @browser.deleter
+    def browser(self):
+        try:
+            del self._browser
+        except AttributeError:
+            pass
+
+    @property
+    def display(self):
+        pass
+
+    @property
+    def chrome(self):
+        raise NotImplementedError()
+
+    def handle_error(self, e):
+        try:
+            directory = tempfile.gettempdir()
+            with codecs.open(os.path.join(directory, "wishlist.html"), encoding='utf-8', mode='w+') as f:
+                f.write(instance.body)
+        except Exception as e:
+            pass
+
+    def location(self, url, ignore_cookies=False):
+        """calls the selenium driver's .get() method, and will load cookies if they
+        are available
+
+        url -- string -- the full url (scheme, domain, path)
+        ignore_cookies -- boolean -- if True then don't try and load cookies
+        """
+        logger.debug("Loading location {}".format(url))
+
+        driver = self.browser
+        url_bits = urlparse.urlparse(url)
+        domain = url_bits.hostname
+        self.domain = domain
+
+        if not ignore_cookies:
+            if domain and (domain not in self.domains):
+                logger.debug("Loading cookies for {}".format(domain))
+                self.domains.add(domain)
+                cookies = Cookies(domain)
+                driver.cookies = cookies.jar
+
+        self.response = driver.get(url)
+
+    def element_exists(self, css_selector):
+        raise NotImplementedError()
+
+    def element(self, css_selector):
+        raise NotImplementedError()
+
+    def __init__(self):
+        self.domains = set()
+
+    def save(self):
+        raise NotImplementedError()
+
+    def close(self):
+        del self.browser
 

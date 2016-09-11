@@ -31,6 +31,36 @@ class BaseTestCase(TestCase):
         return body
 
 
+# class CookiesTest(BaseTestCase):
+#     def test_cookie(self):
+#         from wishlist.browser import Cookies
+#         import requests
+# 
+#         w = Wishlist()
+#         cs = Cookies("www.amazon.com")
+#         #jar = cs.jar
+#         #pout.v(jar)
+# 
+# 
+# #         response = requests.get("", cookies=cs.jar)
+# #         pout.v(response.status_code)
+# #         page = w.get_total_pages_from_body(response.content)
+# #         return
+# 
+#         with requests.Session() as s:
+#             s.headers.update({"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"})
+#             s.cookies = cs.jar
+#             response = s.get("")
+#             pout.v(response.status_code)
+#             #pout.v(response.content)
+#             body = response.content
+#             page = w.get_total_pages_from_body(body)
+#             pout.v(page)
+#             for item in w.get_items_from_body(body):
+#                 pout.v(item.jsonable())
+# 
+
+
 class WishlistTest(BaseTestCase):
     def test_get_total_pages_from_body(self):
         w = Wishlist()

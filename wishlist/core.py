@@ -3,11 +3,15 @@ import datetime
 import re
 import os
 from contextlib import contextmanager
+import logging
 
-from .browser import Browser, ParseError, Soup
+from .browser import Browser, SimpleBrowser, ParseError, Soup
 from .browser import NoSuchElementException, \
     WebDriverException, \
     NoSuchWindowException
+
+
+logger = logging.getLogger(__name__)
 
 
 class WishlistElement(Soup):
@@ -24,6 +28,9 @@ class WishlistElement(Soup):
     @property
     def url(self):
         href = ""
+        # http://stackoverflow.com/questions/5041008/how-to-find-elements-by-class
+        # http://stackoverflow.com/a/5099355/5006
+        # http://stackoverflow.com/a/2832635/5006
         el = self.soup.find("a", id=re.compile("^itemName_"))
         if el and ("href" in el.attrs):
             m = re.search("/dp/([^/]+)", el.attrs["href"])
@@ -153,7 +160,7 @@ class WishlistElement(Soup):
         return json_item
 
 
-class Wishlist(Browser):
+class Wishlist(Soup):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
     element_class = WishlistElement
@@ -162,20 +169,15 @@ class Wishlist(Browser):
     def host(self):
         return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
 
-    @classmethod
     @contextmanager
-    def lifecycle(cls):
-        with super(Wishlist, cls).lifecycle() as instance:
-            instance.homepage() # we load homepage to force cookie loading
-            yield instance
+    def open_simple(self):
+        with SimpleBrowser.open() as b:
+            yield b
 
-    @classmethod
     @contextmanager
-    def open(cls):
-        with super(Wishlist, cls).open() as instance:
-            instance.homepage() # we load homepage to force cookie loading
-            instance.current_page = 0
-            yield instance
+    def open_full(self):
+        with Browser.open() as b:
+            yield b
 
     def get_items_from_body(self, body):
         """this will return the wishlist elements on the current page"""
@@ -217,7 +219,6 @@ class Wishlist(Browser):
 
     def get(self, name, page=0):
         """return the items of the given wishlist name"""
-
         crash_count = 0
         page = page if page > 1 else 1
         self.current_page = page
@@ -225,27 +226,29 @@ class Wishlist(Browser):
         soup = None
         page_count = None
 
-        while True:
-            try:
-                # https://www.amazon.com/gp/registry/wishlist/NAME
-                self.location(self.get_wishlist_url(name, page))
-                soup = self.soupify(self.body)
+        with self.open_simple() as b:
+            while True:
+                try:
+                    # https://www.amazon.com/gp/registry/wishlist/NAME
+                    b.location(self.get_wishlist_url(name, page))
+                    self.current_url = b.current_url
+                    soup = self.soupify(b.body)
 
-                if page_count is None:
-                    page_count = self.get_total_pages_from_body(soup)
+                    if page_count is None:
+                        page_count = self.get_total_pages_from_body(soup)
 
-                for i, item in enumerate(self.get_items_from_body(soup)):
-                    yield item
+                    for i, item in enumerate(self.get_items_from_body(soup)):
+                        yield item
 
-            finally:
-                page += 1
-                if page_count is None or page > page_count:
-                    break
+                except Exception as e:
+                    logger.exception(e)
+                    raise
 
-                self.current_page = page
-                soup = None
+                finally:
+                    page += 1
+                    if page_count is None or page > page_count:
+                        break
 
-    def homepage(self, **kwargs):
-        """loads the amazon homepage, this forces cookies to load"""
-        self.location(self.host, **kwargs)
+                    self.current_page = page
+                    soup = None
 
