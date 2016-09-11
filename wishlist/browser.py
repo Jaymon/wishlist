@@ -74,6 +74,10 @@ class Cookies(object):
     @property
     def jar(self):
         """Returns all the cookies as a CookieJar file"""
+        # https://github.com/kennethreitz/requests/blob/master/requests/packages/urllib3/response.py
+        # http://docs.python-requests.org/en/latest/api/#api-cookies
+        # http://docs.python-requests.org/en/master/_modules/requests/cookies/
+        # http://docs.python-requests.org/en/master/user/quickstart/#cookies
         jar = requests.cookies.RequestsCookieJar()
         for c in self:
             name = c.pop("name")
@@ -327,6 +331,7 @@ class SimpleBrowser(Browser):
     def browser(self):
         browser = getattr(self, "_browser", None)
         if browser is None:
+            # http://docs.python-requests.org/en/latest/user/advanced/#session-objects
             browser = requests.Session()
             browser.headers.update(
                 {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"}
