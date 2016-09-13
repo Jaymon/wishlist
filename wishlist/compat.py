@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import hashlib
 
 # shamelessly ripped from https://github.com/kennethreitz/requests/blob/master/requests/compat.py
 # Syntax sugar.
@@ -23,11 +24,18 @@ if is_py2:
             tb = None
     """)
 
+    # http://stackoverflow.com/a/5297483/5006
+    def md5(text):
+        return hashlib.md5(text).hexdigest()
+
 
 elif is_py3:
     from io import StringIO
 
     basestring = (str, bytes)
+
+    def md5(text):
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
 
     # ripped from six https://bitbucket.org/gutworth/six
     def reraise(tp, value, tb=None):

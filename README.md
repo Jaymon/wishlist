@@ -43,16 +43,17 @@ If you wanted to do something in another python script, you can do:
 
 
 ```python
-from wishlist.core import Wishlist, ParseError
+from __future__ import print_function
+from wishlist.core import Wishlist
 
 name = "9YDNFG31NSSRL"
-with Wishlist.open() as w:
-    for item in w.get(name):
-        # do something with the item
-        pass
+w = Wishlist()
+for item in w.get(name):
+    print(w.jsonable())
 ```
 
 You can check the `wishlist.core.WishlistElement` code to understand the structure of each wishlist item.
+
 
 ## Installation
 

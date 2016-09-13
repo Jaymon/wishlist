@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
 import datetime
 import re
 import os
@@ -9,24 +9,59 @@ from .browser import Browser, SimpleBrowser, ParseError, Soup
 from .browser import NoSuchElementException, \
     WebDriverException, \
     NoSuchWindowException
+from .compat import *
 
 
 logger = logging.getLogger(__name__)
 
-
-class WishlistElement(Soup):
-    """Wishlist.get() returns an instance of this object"""
+class BaseWishlist(Soup):
     @property
     def host(self):
         return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
 
+
+
+class WishlistElement(BaseWishlist):
+    """Wishlist.get() returns an instance of this object"""
     @property
     def uuid(self):
-        m = re.search("/dp/([^/]+)", self.url)
-        return m.group(1) if m else ""
+        uuid = self.a_uuid
+        if not uuid:
+            uuid = self.external_uuid
+        return uuid
 
     @property
     def url(self):
+        url = self.a_url
+        if not url:
+            url = self.external_url
+        return url
+
+    @property
+    def a_uuid(self):
+        """return the amazon uuid of the item"""
+        uuid = ""
+        a_url = self.url
+        if a_url:
+            m = re.search("/dp/([^/]+)", self.url)
+            if m:
+                uuid = m.group(1)
+        else:
+            # go through all the a tags in ItemInfo looking for asin=
+            el = self.soup.find("div", id=re.compile("^itemInfo_"))
+            if el:
+                regex = re.compile("asin\=([^\&]+)")
+                els = el.findAll("a", {"href": regex})
+                for el in els:
+                    m = regex.search(el.attrs["href"])
+                    if m:
+                        uuid = m.group(1).strip()
+                        if uuid: break
+        return uuid
+
+    @property
+    def a_url(self):
+        """return the amazon url of the item"""
         href = ""
         # http://stackoverflow.com/questions/5041008/how-to-find-elements-by-class
         # http://stackoverflow.com/a/5099355/5006
@@ -36,11 +71,30 @@ class WishlistElement(Soup):
             m = re.search("/dp/([^/]+)", el.attrs["href"])
             if m:
                 href = "{}/dp/{}/".format(self.host, m.group(1))
-                tag = os.environ.get("WISHLIST_REFERRER", "marcyescom-20")
-                if tag:
-                    href += "?tag={}".format(tag)
+                if href:
+                    tag = os.environ.get("WISHLIST_REFERRER", "marcyescom-20")
+                    if tag:
+                        href += "?tag={}".format(tag)
 
         return href
+
+    @property
+    def external_uuid(self):
+        """Return the external uuid of the item"""
+        ext_url = self.external_url
+        return md5(ext_url) if ext_url else ""
+
+    @property
+    def external_url(self):
+        """was this added from an external website? Then this returns that url"""
+        href = ""
+        el = self.soup.find("span", {"class": "clip-text"})
+        if el:
+            el = el.find("a")
+            if el:
+                href = el.attrs.get("href", "")
+        return href
+
 
     @property
     def image(self):
@@ -160,14 +214,10 @@ class WishlistElement(Soup):
         return json_item
 
 
-class Wishlist(Soup):
+class Wishlist(BaseWishlist):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
     element_class = WishlistElement
-
-    @property
-    def host(self):
-        return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
 
     @contextmanager
     def open_simple(self):

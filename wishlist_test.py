@@ -131,4 +131,17 @@ class WishlistElementTest(BaseTestCase):
         self.assertFalse(bool(we_json["url"]))
         self.assertTrue(bool(we_json["image"]))
 
+    def test_external(self):
+        """Make sure an item added from an external source is parsed correctly"""
+        we = self.get_item("failed_wishlist_element_7.html")
+        we_json = we.jsonable()
+        self.assertTrue(bool(we_json["uuid"]))
+        self.assertTrue(bool(we_json["url"]))
+
+    def test_unavailable_3(self):
+        """Make sure an unavailable item's asin value is returned as uuid"""
+        we = self.get_item("failed_wishlist_element_8.html")
+        we_json = we.jsonable()
+        self.assertTrue(bool(we_json["uuid"]))
+
 
