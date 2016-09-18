@@ -71,10 +71,6 @@ class WishlistElement(BaseWishlist):
             m = re.search("/dp/([^/]+)", el.attrs["href"])
             if m:
                 href = "{}/dp/{}/".format(self.host, m.group(1))
-                if href:
-                    tag = os.environ.get("WISHLIST_REFERRER", "marcyescom-20")
-                    if tag:
-                        href += "?tag={}".format(tag)
 
         return href
 
