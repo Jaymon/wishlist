@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import logging
 import sys
+import argparse
 
 from captain import echo, exit as console, ArgError
 from captain.decorators import arg, args
@@ -10,13 +11,29 @@ from wishlist.core import Wishlist, ParseError
 from wishlist.browser import RecoverableCrash
 
 
-# configure logging, for debugging
-# logger = logging.getLogger()
-# logger.setLevel(logging.DEBUG)
-# log_handler = logging.StreamHandler(stream=sys.stderr)
-# log_formatter = logging.Formatter('[%(levelname)s] %(message)s')
-# log_handler.setFormatter(log_formatter)
-# logger.addHandler(log_handler)
+# https://hg.python.org/cpython/file/2.7/Lib/argparse.py#l863
+class LoggingAction(argparse.Action):
+    def __init__(self, option_strings, dest, help=None, **kwargs):
+        super(LoggingAction, self).__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=0,
+            const=True,
+            default=False,
+            required=False,
+            help=help
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        """This is called if the value is actually passed in"""
+        #pout.v(namespace, values, option_string)
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        log_handler = logging.StreamHandler(stream=sys.stderr)
+        log_formatter = logging.Formatter('[%(levelname)s] %(message)s')
+        log_handler.setFormatter(log_formatter)
+        logger.addHandler(log_handler)
+        setattr(namespace, self.dest, self.const)
 
 
 def main_auth():
@@ -71,14 +88,21 @@ def main_auth():
             b.save()
 
 
-@arg('name', help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
-@arg('--page', dest="current_page", type=int, default=0, help="The Wishlist page you want to start on")
-def main_dump(name, current_page):
+@arg('name', nargs=1, help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
+@arg('--start-page', dest="start_page", type=int, default=1, help="The Wishlist page you want to start on")
+@arg('--stop-page', dest="stop_page", type=int, default=0, help="The Wishlist page you want to stop on")
+@arg('--debug', dest="debug", action=LoggingAction, help="Turn debugging on")
+def main_dump(name, start_page, stop_page, **kwargs):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""
+    name = name[0]
+    #pout.v(name, start_page, stop_page, kwargs)
+    #pout.x()
+
+    pages = set()
     current_url = ""
     w = Wishlist()
-    for i, item in enumerate(w.get(name, current_page), 1):
+    for i, item in enumerate(w.get(name, start_page, stop_page), 1):
         new_current_url = w.current_url
         if new_current_url != current_url:
             current_url = new_current_url
@@ -102,9 +126,14 @@ def main_dump(name, current_page):
             echo.exception(e)
 
         finally:
-            current_page = w.current_page
+            pages.add(w.current_page)
 
-    echo.out("Done with wishlist, {} total pages", current_page)
+    echo.out(
+        "Done with wishlist, {} total pages parsed (from {} to {})",
+        len(pages),
+        start_page,
+        stop_page
+    )
 
 
 if __name__ == "__main__":

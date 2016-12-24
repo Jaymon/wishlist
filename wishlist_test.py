@@ -83,7 +83,7 @@ class WishlistTest(BaseTestCase):
         body = self.get_body("wishlist-1.html")
         w = Wishlist()
         for item in w.get_items_from_body(body):
-            self.assertEqual(10, len(item.jsonable()))
+            self.assertEqual(13, len(item.jsonable()))
             count += 1
         self.assertEqual(25, count)
 
@@ -144,4 +144,21 @@ class WishlistElementTest(BaseTestCase):
         we_json = we.jsonable()
         self.assertTrue(bool(we_json["uuid"]))
 
+    def test_quantity(self):
+        we = self.get_item("failed_wishlist_element_1.html")
+        self.assertEqual((1, 0), we.quantity)
+        self.assertEqual(1, we.wanted_count)
+        self.assertEqual(0, we.has_count)
+
+    def test_is_digital(self):
+        we = self.get_item("failed_wishlist_element_2.html")
+        self.assertTrue(we.is_digital())
+
+        we = self.get_item("failed_wishlist_element_1.html")
+        self.assertFalse(we.is_digital())
+
+    def test_range(self):
+        we = self.get_item("ranged_wishlist_element_1.html")
+        self.assertEqual(18.95, we.price)
+        self.assertFalse(we.is_amazon())
 

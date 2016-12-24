@@ -189,11 +189,61 @@ class WishlistElement(BaseWishlist):
         return ret
 
     @property
+    def wanted_count(self):
+        """returns the wanted portion of .quantity"""
+        return self.quantity[0]
+
+    @property
+    def has_count(self):
+        """Returns the has portion of .quantity"""
+        return self.quantity[1]
+
+    @property
+    def quantity(self):
+        """Return the quantity wanted and owned of the element
+
+        :returns: tuple of ints (wanted, has)
+        """
+        el = self.soup.find(id=re.compile("^itemQuantityRow_"))
+        bits = [s for s in el.stripped_strings]
+        return (int(bits[1]), int(bits[3]))
+
+    @property
+    def source(self):
+        """Return "amazon" if product is offered by amazon, otherwise return "marketplace" """
+        ret = "marketplace"
+        if not self.is_digital():
+            el = self.soup.find(class_=re.compile("^itemAvailOfferedBy"))
+            if el:
+                s = el.string
+                # In Stock. Offered by Amazon.com.
+                if s and re.search(r"amazon\.com", s, re.I):
+                    ret = "amazon"
+        return ret
+
+    @property
     def body(self):
         return self.soup.prettify()
 
     def __init__(self, element):
         self.soup = self.soupify(element)
+
+    def is_digital(self):
+        """Return true if this is a digital good like a Kindle book or mp3"""
+        ret = False
+        el = self.soup.find(class_=re.compile("^itemAvailOfferedBy"))
+        if el:
+            s = el.string
+            if s:
+                ret = True
+                if not re.search(r"auto-delivered\s+wirelessly", s, re.I):
+                    if not re.search(r"amazon\s+digital\s+services", s, re.I):
+                        ret = False
+        return ret
+
+    def is_amazon(self):
+        """returns True if product is offered by amazon, otherwise False"""
+        return "amazon" in self.source
 
     def jsonable(self):
         json_item = {}
@@ -207,6 +257,12 @@ class WishlistElement(BaseWishlist):
         json_item["author"] = self.author
         json_item["added"] = self.added.strftime('%B %d, %Y')
         json_item["rating"] = self.rating
+        json_item["quantity"] = {
+            "wanted": self.wanted_count,
+            "has": self.has_count
+        }
+        json_item["digital"] = self.is_digital()
+        json_item["source"] = self.source
         return json_item
 
 
@@ -263,11 +319,17 @@ class Wishlist(BaseWishlist):
             base_url += "?page={}".format(page)
         return base_url
 
-    def get(self, name, page=0):
-        """return the items of the given wishlist name"""
+    def get(self, name, start_page=0, stop_page=0):
+        """return the items of the given wishlist name
+
+        :param name: the amazon wishlist NAME, (eg, the NAME in amazon.com/gp/registry/wishlist/NAME url)
+        :param start_page: the page of the wishlist to start parsing
+        :param stop_page: the page of the wishlist to stop parsing
+        """
         crash_count = 0
-        page = page if page > 1 else 1
+        page = start_page if start_page > 1 else 1
         self.current_page = page
+        self.current_body = None
 
         soup = None
         page_count = None
@@ -278,10 +340,11 @@ class Wishlist(BaseWishlist):
                     # https://www.amazon.com/gp/registry/wishlist/NAME
                     b.location(self.get_wishlist_url(name, page))
                     self.current_url = b.current_url
+                    self.current_body = b.body
                     soup = self.soupify(b.body)
 
                     if page_count is None:
-                        page_count = self.get_total_pages_from_body(soup)
+                        page_count = stop_page if stop_page else self.get_total_pages_from_body(soup)
 
                     for i, item in enumerate(self.get_items_from_body(soup)):
                         yield item
