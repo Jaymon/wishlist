@@ -14,11 +14,16 @@ from .compat import *
 
 logger = logging.getLogger(__name__)
 
+
+class RobotError(ParseError):
+    """Raised when programatic access is detected"""
+    pass
+
+
 class BaseWishlist(Soup):
     @property
     def host(self):
         return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
-
 
 
 class WishlistElement(BaseWishlist):
@@ -313,11 +318,25 @@ class Wishlist(BaseWishlist):
 
         return page
 
+    def robot_check(self, body):
+        soup = self.soupify(body)
+
+        el = soup.find("form", action=re.compile(r"validateCaptcha", re.I))
+        if el:
+            raise RobotError("Amazon robot check")
+
     def get_wishlist_url(self, name, page):
         base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
         if page > 1:
             base_url += "?page={}".format(page)
         return base_url
+
+    def set_current(self, url, body):
+        self.current_url = url
+        self.current_body = body
+        soup = self.soupify(body)
+        self.robot_check(soup)
+        return soup
 
     def get(self, name, start_page=0, stop_page=0):
         """return the items of the given wishlist name
@@ -335,14 +354,12 @@ class Wishlist(BaseWishlist):
         page_count = None
 
         with self.open_simple() as b:
+        #with self.open_full() as b:
             while True:
                 try:
                     # https://www.amazon.com/gp/registry/wishlist/NAME
                     b.location(self.get_wishlist_url(name, page))
-                    self.current_url = b.current_url
-                    self.current_body = b.body
-                    soup = self.soupify(b.body)
-
+                    soup = self.set_current(b.current_url, b.body)
                     if page_count is None:
                         page_count = stop_page if stop_page else self.get_total_pages_from_body(soup)
 

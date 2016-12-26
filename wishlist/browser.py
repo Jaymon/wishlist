@@ -37,10 +37,16 @@ logger = logging.getLogger(__name__)
 class ParseError(RuntimeError):
     """This gets raised any time Browser.element() fails to parse,
     it wraps NoSuchElementException"""
-    def __init__(self, body, e):
-        self.body = body
-        self.error = e
-        super(ParseError, self).__init__(e.message)
+    def __init__(self, msg="", body="", error=None):
+        if not msg:
+            if error:
+                msg = error.message
+
+        if body:
+            self.body = body
+
+        self.error = error
+        super(ParseError, self).__init__(msg)
 
 
 class RecoverableCrash(IOError):
@@ -276,7 +282,7 @@ class Browser(Soup):
 
         except NoSuchElementException as e:
             logger.exception(e)
-            raise ParseError(self.body, e)
+            raise ParseError(body=self.body, error=e)
 
     def wait_for_element(self, css_selector, seconds):
         # ??? -- not sure this is needed or is better than builtin methods
@@ -334,8 +340,19 @@ class SimpleBrowser(Browser):
             # http://docs.python-requests.org/en/latest/user/advanced/#session-objects
             browser = requests.Session()
             browser.headers.update(
-                {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"}
+                {
+                    # safari
+                    #"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Safari/602.1.50"
+                    # chrome
+                    # 12-26-2016 - It looks like Amazon is checking Accept-Encoding for sdch, and/or br
+                    # and deciding request is from a bot if it isn't there (ie, gzip, deflate) didn't
+                    # work by itself, and I initially added more headers but testing revealed
+                    # that the lack of this header with those values caused the bot check"
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
+                    "Accept-Encoding": "gzip, deflate, sdch, br",
+                }
             )
+
             self._browser = browser
         return browser
 

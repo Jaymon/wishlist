@@ -7,7 +7,7 @@ from captain import echo, exit as console, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
-from wishlist.core import Wishlist, ParseError
+from wishlist.core import Wishlist, ParseError, RobotError
 from wishlist.browser import RecoverableCrash
 
 
@@ -112,6 +112,9 @@ def main_dump(name, start_page, stop_page, **kwargs):
             item_json = item.jsonable()
             echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
             echo.indent(item_json["url"])
+
+        except RobotError:
+            raise
 
         except ParseError as e:
             echo.err("{}. Failed!", i)

@@ -10,6 +10,7 @@ import sys
 import testdata
 
 from wishlist.core import WishlistElement, Wishlist
+from wishlist.browser import ParseError
 
 
 # configure root logger
@@ -62,6 +63,12 @@ class BaseTestCase(TestCase):
 
 
 class WishlistTest(BaseTestCase):
+    def get_webpage(self, filename):
+        body = self.get_body(filename)
+        w = Wishlist()
+        w.set_current("http://example.com/{}".format(filename), body)
+        return w
+
     def test_get_total_pages_from_body(self):
         w = Wishlist()
         body = self.get_body("wishlist-pagination-last.html")
@@ -86,6 +93,10 @@ class WishlistTest(BaseTestCase):
             self.assertEqual(13, len(item.jsonable()))
             count += 1
         self.assertEqual(25, count)
+
+    def test_robot(self):
+        with self.assertRaises(ParseError):
+            w = self.get_webpage("robot-check.html")
 
 
 class WishlistElementTest(BaseTestCase):
