@@ -342,14 +342,20 @@ class SimpleBrowser(Browser):
             browser.headers.update(
                 {
                     # safari
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Safari/602.1.50",
+                    #"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Safari/602.1.50",
                     # chrome
                     # 12-26-2016 - It looks like Amazon is checking Accept-Encoding for sdch, and/or br
                     # and deciding request is from a bot if it isn't there (ie, gzip, deflate) didn't
                     # work by itself, and I initially added more headers but testing revealed
                     # that the lack of this header with those values caused the bot check"
-                    #"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
                     "Accept-Encoding": "gzip, deflate, sdch, br",
+                    # 4-26-2017, and we're back
+                    "Connection": "keep-alive",
+                    "Cache-Control": "max-age=0",
+                    "Upgrade-Insecure-Requests": "1",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.8",
                 }
             )
 
