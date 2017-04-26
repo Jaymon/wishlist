@@ -327,7 +327,7 @@ class Wishlist(BaseWishlist):
 
     def get_wishlist_url(self, name, page):
         base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
-        if page > 1:
+        if page > 0:
             base_url += "?page={}".format(page)
         return base_url
 
