@@ -181,13 +181,13 @@ class WishlistElement(BaseWishlist):
 
     @property
     def author(self):
-        author = ""
         el = self.soup.find("a", id=re.compile("^itemName_"))
-        if el:
-            author = el.parent.next_sibling
-            if author:
-                author = author.strip().replace("by ", "")
-        return author
+        if not el:
+            return ''
+        author = el.parent.next_sibling
+        if author is None or len(author.contents) < 1:
+            return ''
+        return author.contents[0].strip().replace("by ", "")
 
     @property
     def added(self):
