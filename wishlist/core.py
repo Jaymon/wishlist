@@ -191,14 +191,11 @@ class WishlistElement(BaseWishlist):
 
     @property
     def added(self):
-        ret = None
-        el = self.soup.find("div", id=re.compile("^itemAction_"))
-        el = el.find("span", {"class": "a-size-small"})
-        if el and len(el.contents) > 0:
-            ret = el.contents[0].strip().replace("Added ", "")
-            if ret:
-                ret = datetime.datetime.strptime(ret, '%B %d, %Y')
-        return ret
+        el = self.soup.find('span', id=re.compile('^itemAddedDate_'))
+        if el is None or len(el.contents) < 3:
+            logger.error('Unable to find added date for item.')
+            return None
+        return datetime.datetime.strptime(el.contents[2].strip(), '%B %d, %Y')
 
     @property
     def wanted_count(self):
