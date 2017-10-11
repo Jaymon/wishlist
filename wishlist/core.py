@@ -303,12 +303,8 @@ class Wishlist(BaseWishlist):
         soup = self.soupify(body)
 
         try:
-            #el = soup.find("ul", id=re.compile("^itemAction_"))
             el = soup.find("ul", {"class": "a-pagination"})
-            #el = el.find("li", {"class": "a-last"})
             els = el.findAll("li", {"class": re.compile("^a-")})
-            #pout.v(len(els))
-            #pout.v(els[-2])
             el = els[-2]
             if len(el.contents) and len(el.contents[0].contents):
                 page = int(el.contents[0].contents[0].strip())
