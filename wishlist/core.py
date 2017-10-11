@@ -120,17 +120,24 @@ class WishlistElement(BaseWishlist):
 
     @property
     def price(self):
-        price = 0.0
         el = self.soup.find("span", id=re.compile("^itemPrice_"))
-        if el and len(el.contents) > 0:
-            try:
-                price_str = el.contents[0].strip()
-                if price_str:
-                    price = float(price_str[1:].split()[0].replace(",", ""))
-            except (ValueError, IndexError):
-                price = 0.0
-
-        return price
+        if not el or len(el.contents) < 1:
+            return 0.0
+        try:
+            # the new HTML actually has separate spans for whole currency
+            # units and fractional currency units
+            whole = float(
+                el.find(
+                    'span', class_='a-price-whole'
+                ).contents[0].strip().replace(',', '')
+            )
+            fract = float(
+                el.find('span', class_='a-price-fraction').contents[0].strip()
+            )
+            return float(whole) + (float(fract) / 100.0)
+        except (ValueError, IndexError):
+            logger.error('Unable to parse price span: %s', el)
+            return 0.0
 
     @property
     def marketplace_price(self):
