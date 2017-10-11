@@ -308,9 +308,12 @@ class Wishlist(BaseWishlist):
             el = els[-2]
             if len(el.contents) and len(el.contents[0].contents):
                 page = int(el.contents[0].contents[0].strip())
-
         except AttributeError:
-            raise ParseError("Could not find pagination, is this a wishlist page?")
+            logger.info(
+                'Could not find total number of pages for wishlist %s; '
+                'assuming new-style lazy load with one page', self.wishlist_name
+            )
+            return 1
 
         return page
 
@@ -343,6 +346,7 @@ class Wishlist(BaseWishlist):
         """
         crash_count = 0
         page = start_page if start_page > 1 else 1
+        self.wishlist_name = name
         self.current_page = page
         self.current_body = None
 
