@@ -120,17 +120,24 @@ class WishlistElement(BaseWishlist):
 
     @property
     def price(self):
-        price = 0.0
         el = self.soup.find("span", id=re.compile("^itemPrice_"))
-        if el and len(el.contents) > 0:
-            try:
-                price_str = el.contents[0].strip()
-                if price_str:
-                    price = float(price_str[1:].split()[0].replace(",", ""))
-            except (ValueError, IndexError):
-                price = 0.0
-
-        return price
+        if not el or len(el.contents) < 1:
+            return 0.0
+        try:
+            # the new HTML actually has separate spans for whole currency
+            # units and fractional currency units
+            whole = float(
+                el.find(
+                    'span', class_='a-price-whole'
+                ).contents[0].strip().replace(',', '')
+            )
+            fract = float(
+                el.find('span', class_='a-price-fraction').contents[0].strip()
+            )
+            return float(whole) + (float(fract) / 100.0)
+        except (ValueError, IndexError):
+            logger.error('Unable to parse price span: %s', el)
+            return 0.0
 
     @property
     def marketplace_price(self):
@@ -174,24 +181,21 @@ class WishlistElement(BaseWishlist):
 
     @property
     def author(self):
-        author = ""
         el = self.soup.find("a", id=re.compile("^itemName_"))
-        if el:
-            author = el.parent.next_sibling
-            if author:
-                author = author.strip().replace("by ", "")
-        return author
+        if not el:
+            return ''
+        author = el.parent.next_sibling
+        if author is None or len(author.contents) < 1:
+            return ''
+        return author.contents[0].strip().replace("by ", "")
 
     @property
     def added(self):
-        ret = None
-        el = self.soup.find("div", id=re.compile("^itemAction_"))
-        el = el.find("span", {"class": "a-size-small"})
-        if el and len(el.contents) > 0:
-            ret = el.contents[0].strip().replace("Added ", "")
-            if ret:
-                ret = datetime.datetime.strptime(ret, '%B %d, %Y')
-        return ret
+        el = self.soup.find('span', id=re.compile('^itemAddedDate_'))
+        if el is None or len(el.contents) < 3:
+            logger.error('Unable to find added date for item.')
+            return None
+        return datetime.datetime.strptime(el.contents[2].strip(), '%B %d, %Y')
 
     @property
     def wanted_count(self):
@@ -303,18 +307,17 @@ class Wishlist(BaseWishlist):
         soup = self.soupify(body)
 
         try:
-            #el = soup.find("ul", id=re.compile("^itemAction_"))
             el = soup.find("ul", {"class": "a-pagination"})
-            #el = el.find("li", {"class": "a-last"})
             els = el.findAll("li", {"class": re.compile("^a-")})
-            #pout.v(len(els))
-            #pout.v(els[-2])
             el = els[-2]
             if len(el.contents) and len(el.contents[0].contents):
                 page = int(el.contents[0].contents[0].strip())
-
         except AttributeError:
-            raise ParseError("Could not find pagination, is this a wishlist page?")
+            logger.info(
+                'Could not find total number of pages for wishlist %s; '
+                'assuming new-style lazy load with one page', self.wishlist_name
+            )
+            return 1
 
         return page
 
@@ -347,6 +350,7 @@ class Wishlist(BaseWishlist):
         """
         crash_count = 0
         page = start_page if start_page > 1 else 1
+        self.wishlist_name = name
         self.current_page = page
         self.current_body = None
 
