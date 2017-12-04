@@ -5,31 +5,28 @@ Python library to grab your Amazon wishlist so you can mess with it programmatic
 
 ## Dependencies
 
-Before you can use this you have to have a few things installed, on Ubuntu, you can run these commands:
+### I have a private wishlist
 
-    $ sudo su
-    $ apt-get install --no-install-recommends xvfb
+Wishlist depends on [Brow](https://github.com/Jaymon/brow) in order to login from the command line (including 2 factor if enabled), and Brow depends on Selenium and Firefox to be installed, so you'll need to read [Brow's README](https://github.com/Jaymon/brow/blob/master/README.md) if you need help installing those on Linux.
 
-And you need to install Chrome:
 
-    $ apt-get install --no-install-recommends libxss1 libappindicator1 libindicator7 
-    $ apt-get install --no-install-recommends gconf-service libasound2 libnspr4 libnss3
-    $ apt-get install --no-install-recommends libpango1.0-0 xdg-utils fonts-liberation
-    $ wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    $ dpkg -i google-chrome*.deb
-    $ apt-get install unzip
-    $ LATEST=$(wget -q -O - http://chromedriver.storage.googleapis.com/LATEST_RELEASE)
-    $ wget http://chromedriver.storage.googleapis.com/$LATEST/chromedriver_linux64.zip
-    $ unzip chromedriver_linux64.zip && ln -s $PWD/chromedriver /usr/local/bin/chromedriver
+### I have a public wishlist
 
+Great, then jump down to "Commandline wishlist access" and get started.
 
 ## 1 minute gettings started
+
+
+### Authentication for private lists
 
 Is your wishlist private? Then you will need to authenticate on the command line:
 
     $ wishlist auth
 
 This will prompt you to signin and will even handle 2-factor authentication, after you signin your cookies will be saved so you can run now access your Amazon wishlist.
+
+
+### Commandline wishlist access
 
 You can check access to your wishlist on the command line by running:
 
@@ -39,20 +36,21 @@ where `NAME` is the part of a url like `https://www.amazon.com/gp/registry/wishl
 
     $ wishlist dump 9YDNFG31NSSRL
 
+
+### Programmatic wishlist access
+
 If you wanted to do something in another python script, you can do:
 
-
 ```python
-from __future__ import print_function
 from wishlist.core import Wishlist
 
 name = "9YDNFG31NSSRL"
-w = Wishlist()
-for item in w.get(name):
+w = Wishlist(name)
+for item in w:
     print(w.jsonable())
 ```
 
-You can check the `wishlist.core.WishlistElement` code to understand the structure of each wishlist item.
+You can check the [wishlist.core.WishlistElement](https://github.com/Jaymon/wishlist/blob/master/wishlist/core.py) code to understand the structure of each wishlist item.
 
 
 ## Installation
@@ -67,6 +65,8 @@ Or be bleeding edge:
 
 
 ## Other things
+
+* Why are you using Firefox for logging in? Why not Chrome? I tried to get it to work in Chrome but headless Chrome doesn't have all the features needed to work out authentication on the command line.
 
 * This only works on **amazon.com**, because I only use **amazon.com**, if you want it to use a different Amazon site, I take pull requests :)
 

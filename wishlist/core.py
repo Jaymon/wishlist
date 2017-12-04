@@ -6,28 +6,34 @@ import os
 from contextlib import contextmanager
 import logging
 
-from .browser import Browser, SimpleBrowser, ParseError, Soup
-from .browser import NoSuchElementException, \
-    WebDriverException, \
-    NoSuchWindowException
+from bs4 import BeautifulSoup, Tag
+from brow.interface.selenium import FirefoxBrowser as FullBrowser
+from brow.interface.simple import SimpleFirefoxBrowser as SimpleBrowser
+
 from .compat import *
+from .exception import RobotError
+from . import environ
 
 
 logger = logging.getLogger(__name__)
 
 
-class RobotError(ParseError):
-    """Raised when programatic access is detected"""
-    pass
-
-
-class BaseWishlist(Soup):
+class BaseAmazon(object):
     @property
     def host(self):
-        return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
+        return environ.HOST
+        #return os.environ.get("WISHLIST_HOST", "https://www.amazon.com")
+
+    def soupify(self, body):
+        # https://www.crummy.com/software/BeautifulSoup/
+        # docs: https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+        # bs4 codebase: http://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/files
+        if isinstance(body, Tag): return body
+        soup = BeautifulSoup(body, "html.parser")
+        return soup
 
 
-class WishlistElement(BaseWishlist):
+class WishlistElement(BaseAmazon):
     """Wishlist.get() returns an instance of this object"""
     @property
     def uuid(self):
@@ -276,110 +282,61 @@ class WishlistElement(BaseWishlist):
         return json_item
 
 
-class Wishlist(BaseWishlist):
+class Wishlist(BaseAmazon):
     """Wrapper that is specifically designed for getting amazon wishlists"""
 
     element_class = WishlistElement
 
+    @classmethod
     @contextmanager
-    def open_simple(self):
-        with SimpleBrowser.open() as b:
+    def authenticate(cls):
+        host = environ.HOST
+        logger.info("Requesting {}".format(host))
+        with FullBrowser.session() as b:
+            b.load(host, ignore_cookies=True)
             yield b
 
-    @contextmanager
-    def open_full(self):
-        with Browser.open() as b:
-            yield b
+    def __init__(self, name):
+        self.name = name
 
-    def get_items_from_body(self, body):
+    def robot_check(self, soup):
+        el = soup.find("form", action=re.compile(r"validateCaptcha", re.I))
+        if el:
+            raise RobotError("Amazon robot check")
+
+    def get_wishlist_url(self, path=""):
+        if not path:
+            name = self.name
+            path = "/gp/registry/wishlist/{}".format(name)
+        return "{}/{}".format(self.host.rstrip("/"), path.lstrip("/"))
+
+    def get_items(self, soup):
         """this will return the wishlist elements on the current page"""
-        soup = self.soupify(body)
         html_items = soup.findAll("div", {"id": re.compile("^item_")})
         for i, html_item in enumerate(html_items):
             item = self.element_class(html_item)
             yield item
 
-    def get_total_pages_from_body(self, body):
-        """return the total number of pages of the wishlist
+    def __iter__(self):
+        host = self.host
+        # so the lists are circular for some reason, so we need to track what pages
+        # we have seen and stop when we see the item uuid again
+        seen_uuids = set()
+        url = self.get_wishlist_url()
+        with SimpleBrowser.session() as b:
+            while url:
+                b.load(url)
+                url = ""
+                soup = b.soup
+                uuid_elem = soup.select_one("input#sort-by-price-lek")
+                if uuid_elem:
+                    uuid = uuid_elem.get("value")
+                    if uuid:
+                        elem = soup.select_one("input#sort-by-price-load-more-items-url")
+                        if uuid not in seen_uuids:
+                            url = self.get_wishlist_url(elem["value"])
+                            seen_uuids.add(uuid)
 
-        body -- string -- the complete html page
-        """
-        page = 0
-        soup = self.soupify(body)
-
-        try:
-            el = soup.find("ul", {"class": "a-pagination"})
-            els = el.findAll("li", {"class": re.compile("^a-")})
-            el = els[-2]
-            if len(el.contents) and len(el.contents[0].contents):
-                page = int(el.contents[0].contents[0].strip())
-        except AttributeError:
-            logger.info(
-                'Could not find total number of pages for wishlist %s; '
-                'assuming new-style lazy load with one page', self.wishlist_name
-            )
-            return 1
-
-        return page
-
-    def robot_check(self, body):
-        soup = self.soupify(body)
-
-        el = soup.find("form", action=re.compile(r"validateCaptcha", re.I))
-        if el:
-            raise RobotError("Amazon robot check")
-
-    def get_wishlist_url(self, name, page):
-        base_url = "{}/gp/registry/wishlist/{}".format(self.host, name)
-        if page > 0:
-            base_url += "?page={}".format(page)
-        return base_url
-
-    def set_current(self, url, body):
-        self.current_url = url
-        self.current_body = body
-        soup = self.soupify(body)
-        self.robot_check(soup)
-        return soup
-
-    def get(self, name, start_page=0, stop_page=0):
-        """return the items of the given wishlist name
-
-        :param name: the amazon wishlist NAME, (eg, the NAME in amazon.com/gp/registry/wishlist/NAME url)
-        :param start_page: the page of the wishlist to start parsing
-        :param stop_page: the page of the wishlist to stop parsing
-        """
-        crash_count = 0
-        page = start_page if start_page > 1 else 1
-        self.wishlist_name = name
-        self.current_page = page
-        self.current_body = None
-
-        soup = None
-        page_count = None
-
-        with self.open_simple() as b:
-        #with self.open_full() as b:
-            while True:
-                try:
-                    # https://www.amazon.com/gp/registry/wishlist/NAME
-                    b.location(self.get_wishlist_url(name, page))
-                    soup = self.set_current(b.current_url, b.body)
-                    if page_count is None:
-                        page_count = stop_page if stop_page else self.get_total_pages_from_body(soup)
-
-                    for i, item in enumerate(self.get_items_from_body(soup)):
-                        yield item
-
-                except Exception as e:
-                    logger.exception(e)
-                    raise
-
-                finally:
-                    page += 1
-                    if page_count is None or page > page_count:
-                        break
-
-                    self.current_page = page
-                    soup = None
+                for item in self.get_items(soup):
+                    yield item
 

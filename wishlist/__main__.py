@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals, division, print_function, absolute_import
 import logging
 import sys
 import argparse
@@ -7,8 +8,7 @@ from captain import echo, exit as console, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
-from wishlist.core import Wishlist, ParseError, RobotError
-from wishlist.browser import RecoverableCrash
+from wishlist.core import Wishlist, RobotError
 
 
 # https://hg.python.org/cpython/file/2.7/Lib/argparse.py#l863
@@ -30,49 +30,64 @@ class LoggingAction(argparse.Action):
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
         log_handler = logging.StreamHandler(stream=sys.stderr)
-        log_formatter = logging.Formatter('[%(levelname)s] %(message)s')
+        log_formatter = logging.Formatter('[%(levelname).1s] %(message)s')
         log_handler.setFormatter(log_formatter)
         logger.addHandler(log_handler)
         setattr(namespace, self.dest, self.const)
 
 
-def main_auth():
+@arg('--debug', dest="debug", action=LoggingAction, help="Turn debugging on")
+def main_auth(**kwargs):
     """Signin to amazon so you can access private wishlists"""
-    w = Wishlist()
-    with w.open_full() as b:
-        host = w.host
-        echo.out("Requesting {}", host)
-        b.location(host, ignore_cookies=True)
-
+    with Wishlist.authenticate() as b:
         # If you access from another country, amazon might prompt to redirect to
         # country specific store, we don't want that
-        if b.element_exists("#redir-opt-out"):
+        if b.has_element("#redir-opt-out"):
             echo.out("Circumventing redirect")
             remember = b.element("#redir-opt-out")
             stay = b.element("#redir-stay-at-www")
             remember.click()
             stay.click()
 
-        button = b.element("#a-autoid-0-announce")
+        #button = b.element("a[data-nav-role=signin]")
+        button = b.element("a[id=nav-link-accountList]")
         echo.out("Clicking sign in button")
         button.click()
 
         # now put in your creds
-        email = b.element("#ap_email")
-        password = b.element("#ap_password")
-        submit = b.element("#signInSubmit")
-        if email and password and submit:
-            echo.out("Found sign in form")
+        if b.has_element("#continue"):
+            # I'd never seen a flow like this before, it first prompts for email
+            # and then moves onto password
+            email = b.element("#ap_email")
+            submit = b.element("#continue")
+            echo.out("Found alternate signin form")
+            email_in = echo.prompt("Amazon email address")
+            email.send_keys(email_in)
+            submit.click()
+
+            password = b.element("#ap_password")
+            submit = b.element("#signInSubmit")
+            password_in = echo.prompt("Amazon password")
+            password.send_keys(password_in)
+            echo.out("Signing in")
+            submit.click()
+
+        else:
+            # typical flow, email/password are on the same page
+            email = b.element("#ap_email")
+            password = b.element("#ap_password")
+            submit = b.element("#signInSubmit")
+            echo.out("Found signin form")
             email_in = echo.prompt("Amazon email address")
             password_in = echo.prompt("Amazon password")
 
-        email.send_keys(email_in)
-        password.send_keys(password_in)
-        echo.out("Signing in")
-        submit.click()
+            email.send_keys(email_in)
+            password.send_keys(password_in)
+            echo.out("Signing in")
+            submit.click()
 
         # for 2-factor, wait for this element
-        code = b.wait_for_element("#auth-mfa-otpcode", 5)
+        code = b.element("#auth-mfa-otpcode", 5)
         if code:
             echo.out("2-Factor authentication is on, you should be receiving a text")
             submit = b.element("#auth-signin-button")
@@ -82,36 +97,29 @@ def main_auth():
             code.send_keys(authcode)
             submit.click()
 
-        #https://www.amazon.com/ref=gw_sgn_ib/853-0204854-22247543
-        if "/ref=gw_sgn_ib/" in b.current_url:
+        # original: https://www.amazon.com/ref=gw_sgn_ib/853-0204854-22247543
+        # 12-1-2017: https://www.amazon.com/?ref_=nav_ya_signin&
+        echo.out("Redirect url was: {}", b.url)
+        if "=gw_sgn_ib" in b.url or "=nav_ya_signin" in b.url:
             echo.out("Success, you are now signed in")
-            b.save()
+            b.cookies.dump()
 
 
 @arg('name', nargs=1, help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
-@arg('--start-page', dest="start_page", type=int, default=1, help="The Wishlist page you want to start on")
-@arg('--stop-page', dest="stop_page", type=int, default=0, help="The Wishlist page you want to stop on")
 @arg('--debug', dest="debug", action=LoggingAction, help="Turn debugging on")
-def main_dump(name, start_page, stop_page, **kwargs):
+def main_dump(name, **kwargs):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""
     name = name[0]
     #pout.v(name, start_page, stop_page, kwargs)
     #pout.x()
 
-    pages = set()
-    current_url = ""
-    w = Wishlist()
-    for i, item in enumerate(w.get(name, start_page, stop_page), 1):
-        new_current_url = w.current_url
-        if new_current_url != current_url:
-            current_url = new_current_url
-            echo.h3(current_url)
-
+    w = Wishlist(name)
+    i = 1
+    for i, item in enumerate(w, 1):
         try:
             item_json = item.jsonable()
             echo.out("{}. {} is ${:.2f}", i, item_json["title"], item_json["price"])
-            echo.indent(item_json["url"])
 
         except RobotError:
             raise
@@ -121,22 +129,7 @@ def main_dump(name, start_page, stop_page, **kwargs):
             echo.err(e.body)
             echo.exception(e)
 
-        except KeyboardInterrupt:
-            break
-
-        except Exception as e:
-            echo.err("{}. Failed!", i)
-            echo.exception(e)
-
-        finally:
-            pages.add(w.current_page)
-
-    echo.out(
-        "Done with wishlist, {} total pages parsed (from {} to {})",
-        len(pages),
-        start_page,
-        stop_page
-    )
+    echo.out("Done with wishlist, {} total items", i)
 
 
 if __name__ == "__main__":
