@@ -5,14 +5,14 @@ Python library to grab your Amazon wishlist so you can mess with it programmatic
 
 ## Dependencies
 
-### I have a private wishlist
+### What do I need if I have a private wishlist?
 
 Wishlist depends on [Brow](https://github.com/Jaymon/brow) in order to login from the command line (including 2 factor if enabled), and Brow depends on Selenium and Firefox to be installed, so you'll need to read [Brow's README](https://github.com/Jaymon/brow/blob/master/README.md) if you need help installing those on Linux.
 
 
-### I have a public wishlist
+### What do I need if I have a public wishlist?
 
-Great, then jump down to "Commandline wishlist access" and get started.
+Nothing special, `pip install wishlist` should cover you, jump down to "Commandline wishlist access" and get started.
 
 ## 1 minute gettings started
 
