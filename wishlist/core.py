@@ -130,21 +130,30 @@ class WishlistElement(BaseAmazon):
         el = self.soup.find("span", id=re.compile("^itemPrice_"))
         if not el or len(el.contents) < 1:
             return 0.0
+
+        price = 0.0
         try:
             # the new HTML actually has separate spans for whole currency
             # units and fractional currency units
-            whole = float(
-                el.find(
-                    'span', class_='a-price-whole'
-                ).contents[0].strip().replace(',', '')
-            )
-            fract = float(
-                el.find('span', class_='a-price-fraction').contents[0].strip()
-            )
-            return float(whole) + (float(fract) / 100.0)
+            try:
+                whole = float(
+                    el.find(
+                        'span', class_='a-price-whole'
+                    ).contents[0].strip().replace(',', '')
+                )
+                fract = float(
+                    el.find('span', class_='a-price-fraction').contents[0].strip()
+                )
+                price = float(whole) + (float(fract) / 100.0)
+
+            except AttributeError:
+                s = "".join(el.strings).split("-")[0].strip()
+                price = float(s.lstrip('$').replace(",", ""))
+
         except (ValueError, IndexError):
             logger.error('Unable to parse price span: %s', el)
-            return 0.0
+
+        return price
 
     @property
     def marketplace_price(self):
@@ -198,11 +207,23 @@ class WishlistElement(BaseAmazon):
 
     @property
     def added(self):
+        ret = None
+        format_str = '%B %d, %Y'
         el = self.soup.find('span', id=re.compile('^itemAddedDate_'))
         if el is None or len(el.contents) < 3:
-            logger.error('Unable to find added date for item.')
-            return None
-        return datetime.datetime.strptime(el.contents[2].strip(), '%B %d, %Y')
+            el = self.soup.select_one(".dateAddedText > span")
+            if el:
+                s = el.get_text().strip().split(" ", 1)
+                if len(s) == 2:
+                    ret = datetime.datetime.strptime(s[1], format_str)
+
+            else:
+                logger.error('Unable to find added date for item.')
+
+        else:
+            ret = datetime.datetime.strptime(el.contents[2].strip(), format_str)
+
+        return ret
 
     @property
     def wanted_count(self):
@@ -241,15 +262,23 @@ class WishlistElement(BaseAmazon):
     def body(self):
         return self.soup.prettify()
 
-    def __init__(self, element):
+    def __init__(self, element, page_url=""):
+        """
+        :param element: mixed, the html for the element
+        :param page_url: string, the current page url
+        """
         self.soup = self.soupify(element)
+        self.page_url = page_url
 
     def is_digital(self):
         """Return true if this is a digital good like a Kindle book or mp3"""
         ret = False
         el = self.soup.find(class_=re.compile("^itemAvailOfferedBy"))
+        if not el:
+            el = self.soup.find(class_=re.compile("^itemAvailability"))
+
         if el:
-            s = el.string
+            s = "".join(el.strings)
             if s:
                 ret = True
                 if not re.search(r"auto-delivered\s+wirelessly", s, re.I):
@@ -267,6 +296,7 @@ class WishlistElement(BaseAmazon):
         json_item["image"] = self.image
         json_item["uuid"] = self.uuid
         json_item["url"] = self.url
+        json_item["page_url"] = self.page_url
         json_item["price"] = self.price
         json_item["marketplace_price"] = self.marketplace_price
         json_item["comment"] = self.comment
@@ -310,11 +340,11 @@ class Wishlist(BaseAmazon):
             path = "/gp/registry/wishlist/{}".format(name)
         return "{}/{}".format(self.host.rstrip("/"), path.lstrip("/"))
 
-    def get_items(self, soup):
+    def get_items(self, soup, current_page_url):
         """this will return the wishlist elements on the current page"""
         html_items = soup.findAll("div", {"id": re.compile("^item_")})
         for i, html_item in enumerate(html_items):
-            item = self.element_class(html_item)
+            item = self.element_class(html_item, current_page_url)
             yield item
 
     def __iter__(self):
@@ -326,8 +356,12 @@ class Wishlist(BaseAmazon):
         with SimpleBrowser.session() as b:
             while url:
                 b.load(url)
-                url = ""
                 soup = b.soup
+
+                for item in self.get_items(soup, url):
+                    yield item
+
+                url = ""
                 uuid_elem = soup.select_one("input#sort-by-price-lek")
                 if uuid_elem:
                     uuid = uuid_elem.get("value")
@@ -336,7 +370,4 @@ class Wishlist(BaseAmazon):
                         if uuid not in seen_uuids:
                             url = self.get_wishlist_url(elem["value"])
                             seen_uuids.add(uuid)
-
-                for item in self.get_items(soup):
-                    yield item
 
