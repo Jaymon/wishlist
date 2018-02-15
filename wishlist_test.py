@@ -78,6 +78,15 @@ class WishlistElementTest(BaseTestCase):
         self.assertTrue(bool(we_json["uuid"]))
         self.assertTrue(bool(we_json["url"]))
 
+    def test_external_2(self):
+        we = self.get_item("external_element_1.html")
+        self.assertEqual(159.99, we.price)
+
+    def test_external_3(self):
+        we1 = self.get_item("external_element_1.html")
+        we2 = self.get_item("external_element_2.html")
+        self.assertEqual(we1.uuid, we2.uuid)
+
     def test_unavailable_3(self):
         """Make sure an unavailable item's asin value is returned as uuid"""
         we = self.get_item("failed_wishlist_element_8.html")
@@ -106,8 +115,4 @@ class WishlistElementTest(BaseTestCase):
         self.assertEqual(18.95, we.price)
         self.assertFalse(we.is_amazon())
 
-    def test_external(self):
-        we = self.get_item("external_element_1.html")
-        self.assertEqual(159.99, we.price)
-        #pout.v(we.jsonable())
 

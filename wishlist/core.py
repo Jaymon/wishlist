@@ -97,11 +97,14 @@ class WishlistElement(BaseAmazon):
         """was this added from an external website? Then this returns that url"""
         href = ""
         el = self.soup.find("span", {"class": "clip-text"})
+        if not el:
+            el = self.soup.select_one("[id^=item_from]")
         if el:
             el = el.find("a")
             if el:
                 href = el.attrs.get("href", "")
-        return href
+
+        return href.strip()
 
 
     @property
