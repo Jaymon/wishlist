@@ -160,7 +160,8 @@ class WishlistElement(BaseAmazon):
         price = 0.0
         el = self.soup.find("span", {"class": "itemUsedAndNewPrice"})
         if el and len(el.contents) > 0:
-            price = float(el.contents[0].replace("$", "").replace(",", ""))
+            match = re.match(".+(\d+\.\d+)", el.contents[0])
+            price = float(match.group(1)) if match else 0.0
         return price
 
     @property
