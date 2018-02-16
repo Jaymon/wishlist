@@ -5,7 +5,7 @@ import logging
 from .core import Wishlist, WishlistElement
 
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 # get rid of "No handler found" warnings (cribbed from requests)
