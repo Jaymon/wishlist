@@ -64,11 +64,18 @@ Or be bleeding edge:
     $ pip install "git+https://github.com/Jaymon/wishlist#egg=wishlist"
 
 
+## Regions
+
+To change Amazon region from the default (amazon.com) to another (e.g. amazon.co.uk) just set the environment variable WISHLIST_HOST, for example:
+
+```
+export WISHLIST_HOST=https://amazon.co.uk
+```
+
+
 ## Other things
 
 * Why are you using Firefox for logging in? Why not Chrome? I tried to get it to work in Chrome but headless Chrome doesn't have all the features needed to work out authentication on the command line.
-
-* This only works on **amazon.com**, because I only use **amazon.com**, if you want it to use a different Amazon site, I take pull requests :)
 
 * Would you rather use php? [There's a library for that](https://github.com/doitlikejustin/amazon-wish-lister) ([also related](https://shkspr.mobi/blog/2015/11/an-api-for-amazon-wishlists/)).
 
