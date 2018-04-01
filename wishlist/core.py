@@ -217,12 +217,21 @@ class WishlistElement(BaseAmazon):
         if el is None or len(el.contents) < 3:
             el = self.soup.select_one(".dateAddedText > span")
             if el:
-                s = el.get_text().strip().split(" ", 1)
-                if len(s) == 2:
-                    ret = datetime.datetime.strptime(s[1], format_str)
+                s = el.get_text().strip()
+                while s:
+                    try:
+                        ret = datetime.datetime.strptime(s, format_str)
+                        break
 
-            else:
-                logger.error('Unable to find added date for item.')
+                    except ValueError:
+                        bits = s.split(" ", 1)
+                        if len(bits) > 1:
+                            s = " ".join(bits[1:])
+                        else:
+                            s = ""
+
+                if not ret:
+                    logger.error('Unable to find added date for item.')
 
         else:
             ret = datetime.datetime.strptime(el.contents[2].strip(), format_str)

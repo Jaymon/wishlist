@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import unicode_literals, division, print_function, absolute_import
 from unittest import TestCase
 import os
 from contextlib import contextmanager
 import codecs
-import logging
-import sys
+import datetime
 
 import testdata
 
@@ -13,13 +12,7 @@ from wishlist.core import WishlistElement, Wishlist
 from wishlist.exception import ParseError
 
 
-# configure root logger
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler(stream=sys.stderr)
-log_formatter = logging.Formatter('[%(levelname)s] %(message)s')
-log_handler.setFormatter(log_formatter)
-logger.addHandler(log_handler)
+testdata.basic_logging()
 
 
 class BaseTestCase(TestCase):
@@ -115,4 +108,12 @@ class WishlistElementTest(BaseTestCase):
         self.assertEqual(18.95, we.price)
         self.assertFalse(we.is_amazon())
 
+    def test_failing_added_date(self):
+        """On march 31, 2018 the date added started failing"""
+        we = self.get_item("failed_wishlist_element_9.html")
+        dt = datetime.datetime(2018, 3, 30)
+        self.assertEqual(dt, we.added)
+
+        d = we.jsonable()
+        self.assertTrue("added" in d)
 
