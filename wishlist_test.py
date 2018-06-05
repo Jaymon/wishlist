@@ -26,10 +26,21 @@ class BaseTestCase(TestCase):
 
 
 class WishlistElementTest(BaseTestCase):
+
     def get_item(self, filename):
         body = self.get_body(filename)
         we = WishlistElement(body)
         return we
+
+    def test_permalinks(self):
+        we = self.get_item("permalinks.html")
+        we._page_url = "{}/hz/wishlist/ls/XXX?filter=DEFAULT&lek=xxxxx-xxxx&sort=default&type=wishlist".format(
+            we.host
+        )
+
+        self.assertTrue("lv_ov_lig_dp_it" in we.url)
+        self.assertEqual("B00A6QRKU6", we.uuid)
+        self.assertTrue("#itemMain_IU2UIE3ANI9WG" in we.page_url)
 
     def test_unavailable(self):
         we = self.get_item("failed_wishlist_element_1.html")

@@ -55,7 +55,7 @@ class WishlistElement(BaseAmazon):
         uuid = ""
         a_url = self.url
         if a_url:
-            m = re.search("/dp/([^/]+)", self.url)
+            m = re.search("/dp/([^/\?\&]+)", self.url)
             if m:
                 uuid = m.group(1)
         else:
@@ -80,9 +80,11 @@ class WishlistElement(BaseAmazon):
         # http://stackoverflow.com/a/2832635/5006
         el = self.soup.find("a", id=re.compile("^itemName_"))
         if el and ("href" in el.attrs):
-            m = re.search("/dp/([^/]+)", el.attrs["href"])
-            if m:
-                href = "{}/dp/{}/".format(self.host, m.group(1))
+            href = self.host + el.attrs["href"]
+
+#             m = re.search("/dp/([^/]+)", el.attrs["href"])
+#             if m:
+#                 href = "{}/dp/{}/".format(self.host, m.group(1))
 
         return href
 
@@ -275,13 +277,22 @@ class WishlistElement(BaseAmazon):
     def body(self):
         return self.soup.prettify()
 
+    @property
+    def page_url(self):
+        ret = self._page_url
+        if ret:
+            el = self.soup.find(id=re.compile("^itemMain_"))
+            if el:
+                ret += "#{}".format(el.attrs["id"])
+        return ret
+
     def __init__(self, element, page_url=""):
         """
         :param element: mixed, the html for the element
         :param page_url: string, the current page url
         """
         self.soup = self.soupify(element)
-        self.page_url = page_url
+        self._page_url = page_url
 
     def is_digital(self):
         """Return true if this is a digital good like a Kindle book or mp3"""
