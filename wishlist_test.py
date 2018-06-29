@@ -7,9 +7,11 @@ import codecs
 import datetime
 
 import testdata
+from bs4 import BeautifulSoup
 
 from wishlist.core import WishlistElement, Wishlist
 from wishlist.exception import ParseError
+from brow.utils import Soup
 
 
 testdata.basic_logging()
@@ -17,12 +19,12 @@ testdata.basic_logging()
 
 class BaseTestCase(TestCase):
     def get_body(self, filename):
-        basepath = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
-        path = os.path.join(basepath, "testdata", filename)
-        with codecs.open(path, encoding='utf-8', mode='r') as f:
-        #with open(path) as f:
-            body = f.read()
-        return body
+        return testdata.get_contents(filename)
+
+    def get_soup(self, filename, parser=""):
+        body = self.get_body(filename)
+        soup = Soup(body, parser)
+        return soup
 
 
 class WishlistElementTest(BaseTestCase):
@@ -31,6 +33,29 @@ class WishlistElementTest(BaseTestCase):
         body = self.get_body(filename)
         we = WishlistElement(body)
         return we
+
+    def test_redesign_2018_06(self):
+        """In mid June Amazon updated the html and it had a bug or something in it
+        and so my wishlist didn't parse for a few days and then it was magically
+        fixed, but I managed to grab the first page so I could figure out what was
+        wrong and it turned out I didn't need to change anything except allow
+        Brow to use different parsers because the more liberal non built-in parsers
+        were both able to parse the html"""
+        #body = self.get_body("redesign-2018-06")
+        soup = self.get_soup("html-2018-06", "html.parser")
+        w = Wishlist("WISHLISTNAME")
+        items = list(w.get_items(soup, w.get_wishlist_url()))
+        self.assertEqual(0, len(items))
+
+        soup = self.get_soup("html-2018-06", "lxml")
+        w = Wishlist("WISHLISTNAME")
+        items = list(w.get_items(soup, w.get_wishlist_url()))
+        self.assertEqual(10, len(items))
+
+        soup = self.get_soup("html-2018-06", "html5lib")
+        w = Wishlist("WISHLISTNAME")
+        items = list(w.get_items(soup, w.get_wishlist_url()))
+        self.assertEqual(10, len(items))
 
     def test_permalinks(self):
         we = self.get_item("permalinks.html")

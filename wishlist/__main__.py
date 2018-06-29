@@ -11,32 +11,6 @@ from wishlist import __version__
 from wishlist.core import Wishlist, RobotError
 
 
-# https://hg.python.org/cpython/file/2.7/Lib/argparse.py#l863
-class LoggingAction(argparse.Action):
-    def __init__(self, option_strings, dest, help=None, **kwargs):
-        super(LoggingAction, self).__init__(
-            option_strings=option_strings,
-            dest=dest,
-            nargs=0,
-            const=True,
-            default=False,
-            required=False,
-            help=help
-        )
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        """This is called if the value is actually passed in"""
-        #pout.v(namespace, values, option_string)
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        log_handler = logging.StreamHandler(stream=sys.stderr)
-        log_formatter = logging.Formatter('[%(levelname).1s] %(message)s')
-        log_handler.setFormatter(log_formatter)
-        logger.addHandler(log_handler)
-        setattr(namespace, self.dest, self.const)
-
-
-@arg('--debug', dest="debug", action=LoggingAction, help="Turn debugging on")
 def main_auth(**kwargs):
     """Signin to amazon so you can access private wishlists"""
     with Wishlist.authenticate() as b:
@@ -106,7 +80,6 @@ def main_auth(**kwargs):
 
 
 @arg('name', nargs=1, help="the name of the wishlist, amazon.com/gp/registry/wishlist/NAME")
-@arg('--debug', dest="debug", action=LoggingAction, help="Turn debugging on")
 def main_dump(name, **kwargs):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""

@@ -375,11 +375,14 @@ class Wishlist(BaseAmazon):
         host = self.host
         # so the lists are circular for some reason, so we need to track what pages
         # we have seen and stop when we see the item uuid again
+        name = self.name
         seen_uuids = set()
         url = self.get_wishlist_url()
         with SimpleBrowser.session() as b:
+            page = 1
             while url:
                 b.load(url)
+                b.dump(prefix="{}-{}".format(name, page))
                 soup = b.soup
 
                 for item in self.get_items(soup, url):
@@ -394,4 +397,5 @@ class Wishlist(BaseAmazon):
                         if uuid not in seen_uuids:
                             url = self.get_wishlist_url(elem["value"])
                             seen_uuids.add(uuid)
+                            page += 1
 
