@@ -9,9 +9,10 @@ import logging
 from bs4 import BeautifulSoup, Tag
 from brow.interface.selenium import FirefoxBrowser as FullBrowser
 from brow.interface.simple import SimpleFirefoxBrowser as SimpleBrowser
+from brow.utils import Soup
 
 from .compat import *
-from .exception import RobotError
+from .exception import RobotError, ParseError
 from . import environ
 
 
@@ -29,8 +30,11 @@ class BaseAmazon(object):
         # docs: https://www.crummy.com/software/BeautifulSoup/bs4/doc/
         # bs4 codebase: http://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/files
         if isinstance(body, Tag): return body
-        soup = BeautifulSoup(body, "html.parser")
+        soup = Soup(body)
         return soup
+
+    def dump(self):
+        return self.soup.prettify()
 
 
 class WishlistElement(BaseAmazon):
@@ -132,31 +136,36 @@ class WishlistElement(BaseAmazon):
 
     @property
     def price(self):
-        el = self.soup.find("span", id=re.compile("^itemPrice_"))
-        if not el or len(el.contents) < 1:
-            return 0.0
-
         price = 0.0
-        try:
-            # the new HTML actually has separate spans for whole currency
-            # units and fractional currency units
-            try:
-                whole = float(
-                    el.find(
-                        'span', class_='a-price-whole'
-                    ).contents[0].strip().replace(',', '')
-                )
-                fract = float(
-                    el.find('span', class_='a-price-fraction').contents[0].strip()
-                )
-                price = float(whole) + (float(fract) / 100.0)
 
-            except AttributeError:
+        el = self.soup.find("span", id=re.compile("^itemPrice_"))
+        #pout.v(self.soup.prettify())
+#         pout.v(str(self.soup))
+#         import testdata
+#         f = testdata.create_file("output.html", self.soup.prettify())
+#         pout.v(f)
+        if not el or len(el.contents) < 1:
+            raise ParseError("Could not find price for {}".format(self.title))
+
+        # the new HTML actually has separate spans for whole currency
+        # units and fractional currency units
+        try:
+            whole = float(
+                el.find(
+                    'span', class_='a-price-whole'
+                ).contents[0].strip().replace(',', '')
+            )
+            fract = float(
+                el.find('span', class_='a-price-fraction').contents[0].strip()
+            )
+            price = float(whole) + (float(fract) / 100.0)
+
+        except AttributeError:
+            try:
                 s = "".join(el.strings).split("-")[0].strip()
                 price = float(s.lstrip('$').replace(",", ""))
-
-        except (ValueError, IndexError):
-            logger.error('Unable to parse price span: %s', el)
+            except ValueError:
+                price = 0.0
 
         return price
 
@@ -286,13 +295,15 @@ class WishlistElement(BaseAmazon):
                 ret += "#{}".format(el.attrs["id"])
         return ret
 
-    def __init__(self, element, page_url=""):
+    def __init__(self, element, page_url="", page=0):
         """
         :param element: mixed, the html for the element
         :param page_url: string, the current page url
+        :param page: int, the current page number
         """
         self.soup = self.soupify(element)
         self._page_url = page_url
+        self.page = int(page)
 
     def is_digital(self):
         """Return true if this is a digital good like a Kindle book or mp3"""
@@ -364,11 +375,11 @@ class Wishlist(BaseAmazon):
             path = "/gp/registry/wishlist/{}".format(name)
         return "{}/{}".format(self.host.rstrip("/"), path.lstrip("/"))
 
-    def get_items(self, soup, current_page_url):
+    def get_items(self, soup, current_page_url, current_page=0):
         """this will return the wishlist elements on the current page"""
         html_items = soup.findAll("div", {"id": re.compile("^item_")})
         for i, html_item in enumerate(html_items):
-            item = self.element_class(html_item, current_page_url)
+            item = self.element_class(html_item, current_page_url, current_page)
             yield item
 
     def __iter__(self):
@@ -382,10 +393,10 @@ class Wishlist(BaseAmazon):
             page = 1
             while url:
                 b.load(url)
-                b.dump(prefix="{}-{}".format(name, page))
+                b.dump(basename="{}-{}".format(name, page))
                 soup = b.soup
 
-                for item in self.get_items(soup, url):
+                for item in self.get_items(soup, url, page):
                     yield item
 
                 url = ""

@@ -3,9 +3,10 @@ from __future__ import unicode_literals, division, print_function, absolute_impo
 import logging
 
 from .core import Wishlist, WishlistElement
+from .exception import ParseError # external import convenience
 
 
-__version__ = "0.2.4"
+__version__ = "0.3.0"
 
 
 # get rid of "No handler found" warnings (cribbed from requests)

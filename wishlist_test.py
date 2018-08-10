@@ -34,6 +34,30 @@ class WishlistElementTest(BaseTestCase):
         we = WishlistElement(body)
         return we
 
+    def get_items(self, filename, name="WISHLIST_NAME"):
+        soup = self.get_soup(filename)
+        w = Wishlist(name)
+        items = list(w.get_items(soup, w.get_wishlist_url()))
+        return items
+
+    def test_zero_price(self):
+        we = self.get_item("zero-price-1.html")
+        we.price
+
+        items = self.get_items("zero-price-2.html")
+#         pout.v(len(items))
+#         for item in items:
+#             pout.v(item.title, item.price)
+
+        with self.assertRaises(ParseError):
+            we = items[2]
+            we.price
+
+        with self.assertRaises(ParseError):
+            we = items[4]
+            we.price
+
+
     def test_redesign_2018_06(self):
         """In mid June Amazon updated the html and it had a bug or something in it
         and so my wishlist didn't parse for a few days and then it was magically
