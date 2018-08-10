@@ -57,7 +57,6 @@ class WishlistElementTest(BaseTestCase):
             we = items[4]
             we.price
 
-
     def test_redesign_2018_06(self):
         """In mid June Amazon updated the html and it had a bug or something in it
         and so my wishlist didn't parse for a few days and then it was magically
