@@ -23,7 +23,7 @@ Is your wishlist private? Then you will need to authenticate on the command line
 
     $ wishlist auth
 
-This will prompt you to signin and will even handle 2-factor authentication, after you signin your cookies will be saved so you can run now access your Amazon wishlist.
+This will prompt you to signin and will even handle 2-factor authentication, after you signin your cookies will be saved so you can access your Amazon wishlist on the command line.
 
 
 ### Commandline wishlist access
@@ -59,9 +59,9 @@ use pip:
 
     $ pip install wishlist
 
-Or be bleeding edge:
+To get the bleeding edge version:
 
-    $ pip install "git+https://github.com/Jaymon/wishlist#egg=wishlist"
+    $ pip install --upgrade "git+https://github.com/Jaymon/wishlist#egg=wishlist"
 
 
 ## Regions
@@ -75,9 +75,9 @@ export WISHLIST_HOST=https://amazon.co.uk
 
 ## Other things
 
-* Why are you using Firefox for logging in? Why not Chrome? I tried to get it to work in Chrome but headless Chrome doesn't have all the features needed to work out authentication on the command line.
+* Why are you using Firefox for logging in? Why not Chrome? I tried to get it to work in headless Chrome but all the features I needed to work out authentication on the command line weren't supported.
 
 * Would you rather use php? [There's a library for that](https://github.com/doitlikejustin/amazon-wish-lister) ([also related](https://shkspr.mobi/blog/2015/11/an-api-for-amazon-wishlists/)).
 
-* [Amazon's advertising api](http://docs.aws.amazon.com/AWSECommerceService/latest/DG/Welcome.html), this is where the officially supported wishlist api used to live.
+* [Amazon's advertising api](http://docs.aws.amazon.com/AWSECommerceService/latest/DG/Welcome.html) is where the officially supported wishlist api used to live.
 
