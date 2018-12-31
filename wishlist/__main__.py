@@ -8,7 +8,8 @@ from captain import echo, exit as console, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
-from wishlist.core import Wishlist, RobotError
+from wishlist.core import Wishlist
+from wishlist.exception import RobotError, ParseError
 
 
 def main_auth(**kwargs):

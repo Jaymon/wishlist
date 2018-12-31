@@ -138,34 +138,47 @@ class WishlistElement(BaseAmazon):
     def price(self):
         price = 0.0
 
-        el = self.soup.find("span", id=re.compile("^itemPrice_"))
+        el = self.soup.find("span", id=re.compile(r"^itemPrice_"))
+        #pout.v(el.prettify())
         #pout.v(self.soup.prettify())
 #         pout.v(str(self.soup))
 #         import testdata
 #         f = testdata.create_file("output.html", self.soup.prettify())
 #         pout.v(f)
-        if not el or len(el.contents) < 1:
-            raise ParseError("Could not find price for {}".format(self.title))
-
-        # the new HTML actually has separate spans for whole currency
-        # units and fractional currency units
-        try:
-            whole = float(
-                el.find(
-                    'span', class_='a-price-whole'
-                ).contents[0].strip().replace(',', '')
-            )
-            fract = float(
-                el.find('span', class_='a-price-fraction').contents[0].strip()
-            )
-            price = float(whole) + (float(fract) / 100.0)
-
-        except AttributeError:
+        if el and len(el.contents) >= 1:
+            # the new HTML actually has separate spans for whole currency
+            # units and fractional currency units
             try:
-                s = "".join(el.strings).split("-")[0].strip()
-                price = float(s.lstrip('$').replace(",", ""))
-            except ValueError:
-                price = 0.0
+                whole = float(
+                    el.find(
+                        'span', class_='a-price-whole'
+                    ).contents[0].strip().replace(',', '')
+                )
+                fract = float(
+                    el.find('span', class_='a-price-fraction').contents[0].strip()
+                )
+                price = float(whole) + (float(fract) / 100.0)
+
+            except AttributeError:
+                try:
+                    s = "".join(el.strings).split("-")[0].strip()
+                    price = float(s.lstrip('$').replace(",", ""))
+                except ValueError:
+                    price = 0.0
+
+        else:
+            in_stock = True
+            el_available = self.soup.find("div", class_="itemAvailability")
+            if el_available:
+                if el_available.find("span", class_="itemAvailMessage"):
+                    if el_available.find("a", class_="itemAvailSignup"):
+                        in_stock = True
+
+            if not in_stock:
+                raise ParseError(
+                    msg="Could not find price for {}".format(self.title),
+                    body=self.body
+                )
 
         return price
 
@@ -265,9 +278,22 @@ class WishlistElement(BaseAmazon):
 
         :returns: tuple of ints (wanted, has)
         """
+        ret = None
         el = self.soup.find(id=re.compile("^itemQuantityRow_"))
         bits = [s for s in el.stripped_strings]
-        return (int(bits[1]), int(bits[3]))
+        if len(bits) == 4:
+            ret = (int(bits[1]), int(bits[3]))
+
+        elif len(bits) == 2:
+            ret = (0, 0)
+
+        else:
+            raise ParseError(
+                msg="Could not find quantity for {}".format(self.title),
+                body=self.body
+            )
+
+        return ret
 
     @property
     def source(self):
@@ -320,6 +346,10 @@ class WishlistElement(BaseAmazon):
                     if not re.search(r"amazon\s+digital\s+services", s, re.I):
                         ret = False
         return ret
+
+    def in_stock(self):
+        """Return True if the item is in stock"""
+        return self.price or self.is_digital()
 
     def is_amazon(self):
         """returns True if product is offered by amazon, otherwise False"""
@@ -406,6 +436,7 @@ class Wishlist(BaseAmazon):
                     if uuid:
                         elem = soup.select_one("input#sort-by-price-load-more-items-url")
                         if uuid not in seen_uuids:
+                            logger.debug("First time seeing uuid {}".format(uuid))
                             url = self.get_wishlist_url(elem["value"])
                             seen_uuids.add(uuid)
                             page += 1

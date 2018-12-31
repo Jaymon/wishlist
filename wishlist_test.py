@@ -145,11 +145,23 @@ class WishlistElementTest(BaseTestCase):
         we_json = we.jsonable()
         self.assertTrue(bool(we_json["uuid"]))
 
-    def test_quantity(self):
+    def test_unavailable_4(self):
+        we = self.get_item("unavailable_element_1.html")
+        self.assertEqual(0.0, we.price)
+        self.assertFalse(we.in_stock())
+
+    def test_quantity_1(self):
         we = self.get_item("failed_wishlist_element_1.html")
         self.assertEqual((1, 0), we.quantity)
         self.assertEqual(1, we.wanted_count)
         self.assertEqual(0, we.has_count)
+
+    def test_quantity_2(self):
+        we = self.get_item("unavailable_element_3.html")
+        self.assertEqual((1, 0), we.quantity)
+
+        we = self.get_item("unavailable_element_4.html")
+        self.assertEqual((0, 0), we.quantity)
 
     def test_is_digital(self):
         we = self.get_item("failed_wishlist_element_2.html")
