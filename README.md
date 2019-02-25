@@ -47,7 +47,7 @@ from wishlist.core import Wishlist
 name = "9YDNFG31NSSRL"
 w = Wishlist(name)
 for item in w:
-    print(w.jsonable())
+    print(item.jsonable())
 ```
 
 You can check the [wishlist.core.WishlistElement](https://github.com/Jaymon/wishlist/blob/master/wishlist/core.py) code to understand the structure of each wishlist item.
