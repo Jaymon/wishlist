@@ -107,5 +107,5 @@ def main_dump(name, **kwargs):
 
 
 if __name__ == "__main__":
-    console()
+    console(__name__)
 
