@@ -27,7 +27,7 @@ setup(
     url='http://github.com/Jaymon/{}'.format(name),
     packages=[name],
     license='GPLv2+',
-    install_requires=['captain', 'brow', 'beautifulsoup4'],
+    install_requires=['captain', 'brow', 'beautifulsoup4', 'lxml'],
     classifiers=[ # https://pypi.python.org/pypi?:action=list_classifiers
         'Development Status :: 4 - Beta',
         'Environment :: Plugins',

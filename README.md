@@ -14,6 +14,7 @@ Wishlist depends on [Brow](https://github.com/Jaymon/brow) in order to login fro
 
 Nothing special, `pip install wishlist` should cover you, jump down to "Commandline wishlist access" and get started.
 
+
 ## 1 minute gettings started
 
 
@@ -70,6 +71,15 @@ To change Amazon region from the default (amazon.com) to another (e.g. amazon.co
 
 ```
 export WISHLIST_HOST=https://amazon.co.uk
+```
+
+The environment is setup at module import, so if you need to modify the environment during runtime you should use `wishlist.environ`, so to set the host at runtime, you could do something like:
+
+```python
+from wishlist.core import Wishlist
+from wishlist import environ
+
+environ.HOST="https://www.amazon.fr"
 ```
 
 
