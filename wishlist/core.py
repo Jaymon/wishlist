@@ -167,7 +167,7 @@ class WishlistElement(BaseAmazon):
                     price = 0.0
 
 #         else:
-#            # 6-18-2020, I have no idea what this code is for anymore
+#             # 6-18-2020, I have no idea what this code is for anymore
 #             in_stock = True
 #             el_available = self.soup.find("div", class_="itemAvailability")
 #             if el_available:
