@@ -42,20 +42,15 @@ class WishlistElementTest(BaseTestCase):
 
     def test_zero_price(self):
         we = self.get_item("zero-price-1.html")
-        we.price
+        self.assertEqual(26.03, we.price)
 
         items = self.get_items("zero-price-2.html")
-#         pout.v(len(items))
-#         for item in items:
-#             pout.v(item.title, item.price)
 
-        with self.assertRaises(ParseError):
-            we = items[2]
-            we.price
+        we = items[2]
+        self.assertEqual(0.0, we.price)
 
-        with self.assertRaises(ParseError):
-            we = items[4]
-            we.price
+        we = items[4]
+        self.assertEqual(0.0, we.price)
 
     def test_redesign_2018_06(self):
         """In mid June Amazon updated the html and it had a bug or something in it
@@ -68,7 +63,7 @@ class WishlistElementTest(BaseTestCase):
         soup = self.get_soup("html-2018-06", "html.parser")
         w = Wishlist("WISHLISTNAME")
         items = list(w.get_items(soup, w.get_wishlist_url()))
-        self.assertEqual(0, len(items))
+        self.assertEqual(10, len(items))
 
         soup = self.get_soup("html-2018-06", "lxml")
         w = Wishlist("WISHLISTNAME")
@@ -182,9 +177,19 @@ class WishlistElementTest(BaseTestCase):
     def test_failing_added_date(self):
         """On march 31, 2018 the date added started failing"""
         we = self.get_item("failed_wishlist_element_9.html")
-        dt = datetime.datetime(2018, 3, 30)
+        dt = datetime.date(2018, 3, 30)
         self.assertEqual(dt, we.added)
 
         d = we.jsonable()
         self.assertTrue("added" in d)
+
+    def test_parse_error_june_2020(self):
+        we = self.get_item("failed_wishlist_element_10.html")
+
+        self.assertEqual(datetime.date(2020, 6, 15), we.added)
+        self.assertTrue(we.is_digital())
+        self.assertEqual("amazon", we.source)
+
+        # if no error is raised then this passes
+        we_json = we.jsonable()
 

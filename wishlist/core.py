@@ -166,19 +166,20 @@ class WishlistElement(BaseAmazon):
                 except ValueError:
                     price = 0.0
 
-        else:
-            in_stock = True
-            el_available = self.soup.find("div", class_="itemAvailability")
-            if el_available:
-                if el_available.find("span", class_="itemAvailMessage"):
-                    if el_available.find("a", class_="itemAvailSignup"):
-                        in_stock = True
-
-            if not in_stock:
-                raise ParseError(
-                    msg="Could not find price for {}".format(self.title),
-                    body=self.body
-                )
+#         else:
+#            # 6-18-2020, I have no idea what this code is for anymore
+#             in_stock = True
+#             el_available = self.soup.find("div", class_="itemAvailability")
+#             if el_available:
+#                 if el_available.find("span", class_="itemAvailMessage"):
+#                     if el_available.find("a", class_="itemAvailSignup"):
+#                         in_stock = True
+# 
+#             if not in_stock:
+#                 raise ParseError(
+#                     msg="Could not find price for {}".format(self.title),
+#                     body=self.body
+#                 )
 
         return price
 
@@ -238,27 +239,33 @@ class WishlistElement(BaseAmazon):
         ret = None
         format_str = '%B %d, %Y'
         el = self.soup.find('span', id=re.compile('^itemAddedDate_'))
-        if el is None or len(el.contents) < 3:
-            el = self.soup.select_one(".dateAddedText > span")
-            if el:
-                s = el.get_text().strip()
-                while s:
-                    try:
-                        ret = datetime.datetime.strptime(s, format_str)
-                        break
 
-                    except ValueError:
-                        bits = s.split(" ", 1)
-                        if len(bits) > 1:
-                            s = " ".join(bits[1:])
-                        else:
-                            s = ""
-
-                if not ret:
-                    logger.error('Unable to find added date for item.')
+        if el:
+            for content in el.contents:
+                m = re.search(r"[^\d\s]+\s+\d{1,2},?\s\d{4}", content)
+                if m:
+                    ret = datetime.datetime.strptime(m.group(0).strip(), format_str).date()
+                    break
 
         else:
-            ret = datetime.datetime.strptime(el.contents[2].strip(), format_str)
+            if el is None or len(el.contents) < 3:
+                el = self.soup.select_one(".dateAddedText > span")
+                if el:
+                    s = el.get_text().strip()
+                    while s:
+                        try:
+                            ret = datetime.datetime.strptime(s, format_str).date()
+                            break
+
+                        except ValueError:
+                            bits = s.split(" ", 1)
+                            if len(bits) > 1:
+                                s = " ".join(bits[1:])
+                            else:
+                                s = ""
+
+                    if not ret:
+                        logger.error('Unable to find added date for item.')
 
         return ret
 
@@ -298,8 +305,11 @@ class WishlistElement(BaseAmazon):
     @property
     def source(self):
         """Return "amazon" if product is offered by amazon, otherwise return "marketplace" """
-        ret = "marketplace"
-        if not self.is_digital():
+        if self.is_digital():
+            ret = "amazon"
+
+        else:
+            ret = "marketplace"
             el = self.soup.find(class_=re.compile("^itemAvailOfferedBy"))
             if el:
                 s = el.string
@@ -345,6 +355,10 @@ class WishlistElement(BaseAmazon):
                 if not re.search(r"auto-delivered\s+wirelessly", s, re.I):
                     if not re.search(r"amazon\s+digital\s+services", s, re.I):
                         ret = False
+
+        else:
+            ret = "kindle edition" in self.author.lower()
+
         return ret
 
     def in_stock(self):
@@ -366,7 +380,12 @@ class WishlistElement(BaseAmazon):
         json_item["marketplace_price"] = self.marketplace_price
         json_item["comment"] = self.comment
         json_item["author"] = self.author
-        json_item["added"] = self.added.strftime('%B %d, %Y')
+
+        json_item["added"] = "UNKNOWN"
+        added = self.added
+        if added:
+            json_item["added"] = added.strftime('%B %d, %Y')
+
         json_item["rating"] = self.rating
         json_item["quantity"] = {
             "wanted": self.wanted_count,

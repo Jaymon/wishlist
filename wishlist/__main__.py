@@ -4,7 +4,7 @@ import logging
 import sys
 import argparse
 
-from captain import echo, exit as console, ArgError
+from captain import echo, exit, ArgError
 from captain.decorators import arg, args
 
 from wishlist import __version__
@@ -106,6 +106,9 @@ def main_dump(name, **kwargs):
     echo.out("Done with wishlist, {} total items", i)
 
 
+def console():
+    exit(__name__)
+
 if __name__ == "__main__":
-    console(__name__)
+    console()
 
