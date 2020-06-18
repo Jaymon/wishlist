@@ -11,7 +11,6 @@ from codecs import open
 name = "wishlist"
 kwargs = dict(
     name=name,
-    version=version,
     description='Amazon wishlist scraper',
     long_description=long_description,
     author='Jay Marcyes',
