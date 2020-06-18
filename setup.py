@@ -12,7 +12,6 @@ name = "wishlist"
 kwargs = dict(
     name=name,
     description='Amazon wishlist scraper',
-    long_description=long_description,
     author='Jay Marcyes',
     author_email='jay@marcyes.com',
     url='http://github.com/Jaymon/{}'.format(name),
