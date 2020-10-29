@@ -6,7 +6,7 @@ import os
 from contextlib import contextmanager
 import logging
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 from brow.interface.selenium import FirefoxBrowser as FullBrowser
 from brow.interface.simple import SimpleFirefoxBrowser as SimpleBrowser
 from brow.utils import Soup
@@ -319,6 +319,23 @@ class WishlistElement(BaseAmazon):
         return ret
 
     @property
+    def discount(self):
+        ret = None
+        el = self.soup.find("div", class_=re.compile("^itemPriceDrop"))
+        if el:
+            for content in el.contents:
+                if isinstance(content, NavigableString):
+                    match = re.search(r"(\d+)\s*%", content)
+                elif isinstance(content, Tag):
+                    match = re.search(r"(\d+)\s*%", content.text)
+                else:
+                    continue
+                if match:
+                    ret = int(match.group(1))
+                    break
+        return ret
+
+    @property
     def body(self):
         return self.soup.prettify()
 
@@ -380,6 +397,7 @@ class WishlistElement(BaseAmazon):
         json_item["marketplace_price"] = self.marketplace_price
         json_item["comment"] = self.comment
         json_item["author"] = self.author
+        json_item["discount"] = self.discount
 
         json_item["added"] = "UNKNOWN"
         added = self.added
