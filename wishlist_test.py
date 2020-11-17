@@ -193,3 +193,12 @@ class WishlistElementTest(BaseTestCase):
         # if no error is raised then this passes
         we_json = we.jsonable()
 
+    def test_discount(self):
+        we = self.get_item("permalinks.html")
+
+        self.assertEqual(9, we.discount)
+
+    def test_discount_DE(self):
+        we = self.get_item("discount-DE.html")
+
+        self.assertEqual(3, we.discount)
