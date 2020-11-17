@@ -32,7 +32,7 @@ kwargs = dict(
 )
 
 kwargs["tests_require"] = []
-kwargs["install_requires"] = ['captain', 'brow', 'beautifulsoup4', 'lxml'],
+kwargs["install_requires"] = ['captain==3.0.1', 'brow', 'beautifulsoup4', 'lxml'],
 #kwargs["extras_require"] = {"extra_name": []}
 
 
