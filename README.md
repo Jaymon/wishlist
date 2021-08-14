@@ -15,7 +15,7 @@ Wishlist depends on [Brow](https://github.com/Jaymon/brow) in order to login fro
 Nothing special, `pip install wishlist` should cover you, jump down to "Commandline wishlist access" and get started.
 
 
-## 1 minute gettings started
+## 1 minute getting started
 
 
 ### Authentication for private lists
