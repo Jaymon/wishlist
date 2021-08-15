@@ -12,6 +12,10 @@ from wishlist.core import Wishlist
 from wishlist.exception import RobotError, ParseError
 
 
+import testdata
+testdata.basic_logging()
+
+
 def main_auth(**kwargs):
     """Signin to amazon so you can access private wishlists"""
     with Wishlist.authenticate() as b:
@@ -85,11 +89,7 @@ def main_dump(name, **kwargs):
     """This is really here just to test that I can parse a wishlist completely and
     to demonstrate (by looking at the code) how to iterate through a list"""
     name = name[0]
-    #pout.v(name, start_page, stop_page, kwargs)
-    #pout.x()
-
     w = Wishlist(name)
-    i = 1
     for i, item in enumerate(w, 1):
         try:
             item_json = item.jsonable()
@@ -102,6 +102,10 @@ def main_dump(name, **kwargs):
             echo.err("{}. Failed!", i)
             echo.err(e.body)
             echo.exception(e)
+
+        except Exception as e:
+            echo.out(item.dump())
+            echo.err("{}. Failed with {}", i, e)
 
     echo.out("Done with wishlist, {} total items", i)
 

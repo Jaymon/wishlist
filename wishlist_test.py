@@ -52,6 +52,17 @@ class WishlistElementTest(BaseTestCase):
         we = items[4]
         self.assertEqual(0.0, we.price)
 
+    def test_element_failure_2021_08(self):
+        """Fixes error that's been around for like 6 months
+
+        AttributeError: 'NavigableString' object has no attribute 'contents'
+
+        I just hadn't had time to dive back into the code and fix it, this error
+        has probably saved me quite a bit of money actually
+        """
+        we = self.get_item("failed_wishlist_element_2021-08.html")
+        self.assertTrue(we.author)
+
     def test_redesign_2018_06(self):
         """In mid June Amazon updated the html and it had a bug or something in it
         and so my wishlist didn't parse for a few days and then it was magically

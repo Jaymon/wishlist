@@ -85,11 +85,6 @@ class WishlistElement(BaseAmazon):
         el = self.soup.find("a", id=re.compile("^itemName_"))
         if el and ("href" in el.attrs):
             href = self.host + el.attrs["href"]
-
-#             m = re.search("/dp/([^/]+)", el.attrs["href"])
-#             if m:
-#                 href = "{}/dp/{}/".format(self.host, m.group(1))
-
         return href
 
     @property
@@ -139,12 +134,6 @@ class WishlistElement(BaseAmazon):
         price = 0.0
 
         el = self.soup.find("span", id=re.compile(r"^itemPrice_"))
-        #pout.v(el.prettify())
-        #pout.v(self.soup.prettify())
-#         pout.v(str(self.soup))
-#         import testdata
-#         f = testdata.create_file("output.html", self.soup.prettify())
-#         pout.v(f)
         if el and len(el.contents) >= 1:
             # the new HTML actually has separate spans for whole currency
             # units and fractional currency units
@@ -165,21 +154,6 @@ class WishlistElement(BaseAmazon):
                     price = float(s.lstrip('$').replace(",", ""))
                 except ValueError:
                     price = 0.0
-
-#         else:
-#             # 6-18-2020, I have no idea what this code is for anymore
-#             in_stock = True
-#             el_available = self.soup.find("div", class_="itemAvailability")
-#             if el_available:
-#                 if el_available.find("span", class_="itemAvailMessage"):
-#                     if el_available.find("a", class_="itemAvailSignup"):
-#                         in_stock = True
-# 
-#             if not in_stock:
-#                 raise ParseError(
-#                     msg="Could not find price for {}".format(self.title),
-#                     body=self.body
-#                 )
 
         return price
 
@@ -226,13 +200,13 @@ class WishlistElement(BaseAmazon):
 
     @property
     def author(self):
-        el = self.soup.find("a", id=re.compile("^itemName_"))
-        if not el:
-            return ''
-        author = el.parent.next_sibling
-        if author is None or len(author.contents) < 1:
-            return ''
-        return author.contents[0].strip().replace("by ", "")
+        ret = ""
+        el = self.soup.find("span", id=re.compile(r"^item-byline-"))
+        if el:
+            contents = getattr(el, "contents", [])
+            if contents:
+                ret = contents[0].strip().replace("by ", "").strip()
+        return ret
 
     @property
     def added(self):
@@ -467,14 +441,14 @@ class Wishlist(BaseAmazon):
                     yield item
 
                 url = ""
-                uuid_elem = soup.select_one("input#sort-by-price-lek")
-                if uuid_elem:
+                url_elem = soup.select_one("input.showMoreUrl")
+                if url_elem:
+                    uuid_elem = soup.select_one("input.lastEvaluatedKey")
                     uuid = uuid_elem.get("value")
                     if uuid:
-                        elem = soup.select_one("input#sort-by-price-load-more-items-url")
                         if uuid not in seen_uuids:
                             logger.debug("First time seeing uuid {}".format(uuid))
-                            url = self.get_wishlist_url(elem["value"])
+                            url = self.get_wishlist_url(url_elem["value"])
                             seen_uuids.add(uuid)
                             page += 1
 
