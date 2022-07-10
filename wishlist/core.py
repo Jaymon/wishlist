@@ -9,6 +9,9 @@ import logging
 from bs4 import BeautifulSoup, Tag, NavigableString
 from brow.interface.selenium import FirefoxBrowser as FullBrowser
 from brow.interface.simple import SimpleFirefoxBrowser as SimpleBrowser
+#from brow.interface.selenium import ChromeBrowser as FullBrowser
+#from brow.interface.simple import SimpleChromeBrowser as SimpleBrowser
+
 from brow.utils import Soup
 
 from .compat import *

@@ -32,6 +32,7 @@ def main_auth(**kwargs):
         button = b.element("a[id=nav-link-accountList]")
         echo.out("Clicking sign in button")
         button.click()
+        prompt_normalize = lambda v: v
 
         # now put in your creds
         if b.has_element("#continue"):
@@ -40,13 +41,14 @@ def main_auth(**kwargs):
             email = b.element("#ap_email")
             submit = b.element("#continue")
             echo.out("Found alternate signin form")
-            email_in = echo.prompt("Amazon email address")
+            email_in = echo.prompt("Amazon email address: ", type=prompt_normalize)
             email.send_keys(email_in)
             submit.click()
 
             password = b.element("#ap_password")
             submit = b.element("#signInSubmit")
-            password_in = echo.prompt("Amazon password")
+            password_in = echo.prompt("Amazon password: ", type=prompt_normalize)
+            print('"{}"'.format(password_in))
             password.send_keys(password_in)
             echo.out("Signing in")
             submit.click()
@@ -57,8 +59,8 @@ def main_auth(**kwargs):
             password = b.element("#ap_password")
             submit = b.element("#signInSubmit")
             echo.out("Found signin form")
-            email_in = echo.prompt("Amazon email address")
-            password_in = echo.prompt("Amazon password")
+            email_in = echo.prompt("Amazon email address: ", type=prompt_normalize)
+            password_in = echo.prompt("Amazon password: ", type=prompt_normalize)
 
             email.send_keys(email_in)
             password.send_keys(password_in)
@@ -68,17 +70,17 @@ def main_auth(**kwargs):
         # for 2-factor, wait for this element
         code = b.element("#auth-mfa-otpcode", 5)
         if code:
-            echo.out("2-Factor authentication is on, you should be receiving a text")
+            echo.out("2-Factor authentication is on")
             submit = b.element("#auth-signin-button")
             remember = b.element("#auth-mfa-remember-device")
             remember.click()
-            authcode = echo.prompt("2-Factor authcode")
+            authcode = echo.prompt("2-Factor authcode: ", type=prompt_normalize)
             code.send_keys(authcode)
             submit.click()
 
         # original: https://www.amazon.com/ref=gw_sgn_ib/853-0204854-22247543
         # 12-1-2017: https://www.amazon.com/?ref_=nav_ya_signin&
-        echo.out("Redirect url was: {}", b.url)
+        echo.debug("Redirect url was: {}", b.url)
         if "=gw_sgn_ib" in b.url or "=nav_ya_signin" in b.url:
             echo.out("Success, you are now signed in")
             b.cookies.dump()
@@ -90,6 +92,7 @@ def main_dump(name, **kwargs):
     to demonstrate (by looking at the code) how to iterate through a list"""
     name = name[0]
     w = Wishlist(name)
+    i = 0
     for i, item in enumerate(w, 1):
         try:
             item_json = item.jsonable()
