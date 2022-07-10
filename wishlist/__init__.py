@@ -6,7 +6,7 @@ from .core import Wishlist, WishlistElement
 from .exception import ParseError # external import convenience
 
 
-__version__ = "0.5.4"
+__version__ = "0.6.0"
 
 
 # get rid of "No handler found" warnings (cribbed from requests)
