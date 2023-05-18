@@ -12,8 +12,12 @@ from wishlist.core import Wishlist
 from wishlist.exception import RobotError, ParseError
 
 
-import testdata
-testdata.basic_logging()
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler(stream=sys.stderr)
+log_formatter = logging.Formatter('[%(levelname).1s] %(message)s')
+log_handler.setFormatter(log_formatter)
+logger.addHandler(log_handler)
 
 
 def main_auth(**kwargs):
@@ -103,12 +107,13 @@ def main_dump(name, **kwargs):
 
         except ParseError as e:
             echo.err("{}. Failed!", i)
-            echo.err(e.body)
             echo.exception(e)
+            echo.err(e.body)
 
         except Exception as e:
             echo.out(item.dump())
             echo.err("{}. Failed with {}", i, e)
+            echo.exception(e)
 
     echo.out("Done with wishlist, {} total items", i)
 

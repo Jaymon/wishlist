@@ -262,16 +262,22 @@ class WishlistElement(BaseAmazon):
 
         :returns: tuple of ints (wanted, has)
         """
-        ret = None
+        ret = [0, 0]
+
         el = self.soup.find(id=re.compile("^itemQuantityRow_"))
         bits = [s for s in el.stripped_strings]
-        if len(bits) == 4:
-            ret = (int(bits[1]), int(bits[3]))
+        total_bits = len(bits)
+        needed = {"needs": 0, "has": 1}
+        i = 0
+        while (i < total_bits) and needed:
+            v = bits[i].lower()
+            if v in needed:
+                i += 1
+                ret[needed.pop(v)] = int(bits[i])
 
-        elif len(bits) == 2:
-            ret = (0, 0)
+            i += 1
 
-        else:
+        if needed:
             raise ParseError(
                 msg="Could not find quantity for {}".format(self.title),
                 body=self.body
